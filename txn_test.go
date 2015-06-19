@@ -526,3 +526,48 @@ func TestTxn_InsertGet_Prefix(t *testing.T) {
 	// Check the results in a new txn
 	checkResult(txn)
 }
+
+func TestTxn_Defer(t *testing.T) {
+	db := testDB(t)
+	txn := db.Txn(true)
+	res := ""
+
+	// Defer a few functions
+	txn.Defer(func() {
+		res += "c"
+	})
+	txn.Defer(func() {
+		res += "b"
+	})
+	txn.Defer(func() {
+		res += "a"
+	})
+
+	// Commit the txn
+	txn.Commit()
+
+	// Check the result. All functions should have run, and should
+	// have been executed in LIFO order.
+	if res != "abc" {
+		t.Fatalf("bad: %q", res)
+	}
+}
+
+func TestTxn_Defer_Abort(t *testing.T) {
+	db := testDB(t)
+	txn := db.Txn(true)
+	res := ""
+
+	// Defer a function
+	txn.Defer(func() {
+		res += "nope"
+	})
+
+	// Commit the txn
+	txn.Abort()
+
+	// Ensure deferred did not run
+	if res != "" {
+		t.Fatalf("bad: %q", res)
+	}
+}
