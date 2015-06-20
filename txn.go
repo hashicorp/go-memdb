@@ -405,8 +405,10 @@ func (txn *Txn) Get(table, index string, args ...interface{}) (ResultIterator, e
 	return iter, nil
 }
 
-// Defer is used to push a new arbitrary function onto a stack which gets
-// called when a transaction is committed and finished.
+// Defer is used to push a new arbitrary function onto a stack which
+// gets called when a transaction is committed and finished. Deferred
+// functions are called in LIFO order, and only invoked at the end of
+// write transactions.
 func (txn *Txn) Defer(fn func()) {
 	txn.after = append(txn.after, fn)
 }
