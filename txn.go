@@ -19,6 +19,7 @@ type Txn struct {
 	db      *MemDB
 	write   bool
 	rootTxn *iradix.Txn
+	after   []func()
 
 	modified map[tableIndex]*iradix.Txn
 }
@@ -117,6 +118,12 @@ func (txn *Txn) Commit() {
 
 	// Release the writer lock since this is invalid
 	txn.db.writer.Unlock()
+
+	// Run the deferred functions, if any
+	for i := len(txn.after); i > 0; i-- {
+		fn := txn.after[i-1]
+		fn()
+	}
 }
 
 // Insert is used to add or update an object into the given table
@@ -396,6 +403,14 @@ func (txn *Txn) Get(table, index string, args ...interface{}) (ResultIterator, e
 		results:   results,
 	}
 	return iter, nil
+}
+
+// Defer is used to push a new arbitrary function onto a stack which
+// gets called when a transaction is committed and finished. Deferred
+// functions are called in LIFO order, and only invoked at the end of
+// write transactions.
+func (txn *Txn) Defer(fn func()) {
+	txn.after = append(txn.after, fn)
 }
 
 // Slice iterator is used to iterate over a slice of results.
