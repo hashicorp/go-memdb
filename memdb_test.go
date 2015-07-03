@@ -39,3 +39,43 @@ func TestMemDB_SingleWriter_MultiReader(t *testing.T) {
 		t.Fatalf("should allow another writer")
 	}
 }
+
+func TestMemDB_Snapshot(t *testing.T) {
+	db, err := NewMemDB(testValidSchema())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Add an object
+	obj := testObj()
+	txn := db.Txn(true)
+	txn.Insert("main", obj)
+	txn.Commit()
+
+	// Clone the db
+	db2 := db.Snapshot()
+
+	// Remove the object
+	txn = db.Txn(true)
+	txn.Delete("main", obj)
+	txn.Commit()
+
+	// Object should exist in second snapshot but not first
+	txn = db.Txn(false)
+	out, err := txn.First("main", "id", obj.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != nil {
+		t.Fatalf("should not exist %#v", out)
+	}
+
+	txn = db2.Txn(true)
+	out, err = txn.First("main", "id", obj.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("should exist")
+	}
+}

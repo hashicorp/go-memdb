@@ -50,6 +50,17 @@ func (db *MemDB) Txn(write bool) *Txn {
 	return txn
 }
 
+// Snapshot is used to capture a point-in-time snapshot
+// of the database that will not be affected by any write
+// operations to the existing DB.
+func (db *MemDB) Snapshot() *MemDB {
+	clone := &MemDB{
+		schema: db.schema,
+		root:   db.root,
+	}
+	return clone
+}
+
 // initialize is used to setup the DB for use after creation
 func (db *MemDB) initialize() error {
 	for tName, tableSchema := range db.schema.Tables {
