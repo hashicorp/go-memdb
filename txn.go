@@ -305,16 +305,11 @@ func (txn *Txn) First(table, index string, args ...interface{}) (interface{}, er
 		return obj, nil
 	}
 
-	// Handle non-unique index by doing a prefix walk
-	// and getting the first value
-	// TODO: Optimize this
-	var firstVal interface{}
-	indexRoot := indexTxn.Root()
-	indexRoot.WalkPrefix(val, func(key []byte, val interface{}) bool {
-		firstVal = val
-		return true
-	})
-	return firstVal, nil
+	// Handle non-unique index by using an iterator and getting the first value
+	iter := indexTxn.Root().Iterator()
+	iter.SeekPrefix(val)
+	_, value, _ := iter.Next()
+	return value, nil
 }
 
 // getIndexValue is used to get the IndexSchema and the value
