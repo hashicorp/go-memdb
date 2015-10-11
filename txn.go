@@ -258,11 +258,6 @@ func (txn *Txn) DeleteAll(table, index string, args ...interface{}) (int, error)
 		return 0, fmt.Errorf("cannot delete in read-only transaction")
 	}
 
-	// TODO: Currently we use Get to just every object and then
-	// iterate and delete them all. This works because sliceIterator
-	// has the full result set, but we may need to handle the iteraction
-	// between the iterator and delete in the future.
-
 	// Get all the objects
 	iter, err := txn.Get(table, index, args...)
 	if err != nil {
@@ -383,19 +378,15 @@ func (txn *Txn) Get(table, index string, args ...interface{}) (ResultIterator, e
 	indexTxn := txn.readableIndex(table, indexSchema.Name)
 	indexRoot := indexTxn.Root()
 
-	// Collect all the objects by walking the prefix. This should obviously
-	// be optimized by using an iterator over the radix tree, but that is
-	// a lot more work so its a TODO for now.
-	var results []interface{}
-	indexRoot.WalkPrefix(val, func(key []byte, val interface{}) bool {
-		results = append(results, val)
-		return false
-	})
+	// Get an interator over the index
+	indexIter := indexRoot.Iterator()
 
-	// Create a crappy iterator
-	iter := &sliceIterator{
-		nextIndex: 0,
-		results:   results,
+	// Seek the iterator to the appropriate sub-set
+	indexIter.SeekPrefix(val)
+
+	// Create an iterator
+	iter := &radixIterator{
+		iter: indexIter,
 	}
 	return iter, nil
 }
@@ -408,19 +399,17 @@ func (txn *Txn) Defer(fn func()) {
 	txn.after = append(txn.after, fn)
 }
 
-// Slice iterator is used to iterate over a slice of results.
-// This is not very efficient as it means the results have already
-// been materialized under the iterator.
-type sliceIterator struct {
-	nextIndex int
-	results   []interface{}
+// radixIterator is used to wrap an underlying iradix iterator.
+// This is much mroe efficient than a sliceIterator as we are not
+// materializing the entire view.
+type radixIterator struct {
+	iter *iradix.Iterator
 }
 
-func (s *sliceIterator) Next() interface{} {
-	if s.nextIndex >= len(s.results) {
+func (r *radixIterator) Next() interface{} {
+	_, value, ok := r.iter.Next()
+	if !ok {
 		return nil
 	}
-	result := s.results[s.nextIndex]
-	s.nextIndex++
-	return result
+	return value
 }
