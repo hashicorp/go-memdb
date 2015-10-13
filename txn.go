@@ -264,13 +264,21 @@ func (txn *Txn) DeleteAll(table, index string, args ...interface{}) (int, error)
 		return 0, err
 	}
 
-	// Delete all
-	var num int
+	// Put them into a slice so there are no safety concerns while actually
+	// performing the deletes
+	var objs []interface{}
 	for {
 		obj := iter.Next()
 		if obj == nil {
 			break
 		}
+
+		objs = append(objs, obj)
+	}
+
+	// Do the deletes
+	num := 0
+	for _, obj := range(objs) {
 		if err := txn.Delete(table, obj); err != nil {
 			return num, err
 		}
