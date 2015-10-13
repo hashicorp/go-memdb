@@ -391,13 +391,22 @@ func TestTxn_DeleteAll_Simple(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
+	// Do a delete that doesn't hit any objects
+	num, err := txn.DeleteAll("main", "id", "dogs")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if num != 0 {
+		t.Fatalf("bad: %d", num)
+	}
+
 	// Delete a specific ID
-	num, err := txn.DeleteAll("main", "id", obj1.ID)
+	num, err = txn.DeleteAll("main", "id", obj1.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if num != 1 {
-		t.Fatalf("Bad: %d", num)
+		t.Fatalf("bad: %d", num)
 	}
 
 	// Ensure we cannot lookup
@@ -420,6 +429,55 @@ func TestTxn_DeleteAll_Simple(t *testing.T) {
 
 	// Ensure we cannot lookup
 	raw, err = txn.First("main", "foo", obj2.Foo)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if raw != nil {
+		t.Fatalf("bad: %#v", raw)
+	}
+}
+
+func TestTxn_DeleteAll_Prefix(t *testing.T) {
+	db := testDB(t)
+	txn := db.Txn(true)
+
+	obj1 := &TestObject{
+		ID:  "my-object",
+		Foo: "abc",
+	}
+	obj2 := &TestObject{
+		ID:  "my-cool-thing",
+		Foo: "xyz",
+	}
+	obj3 := &TestObject{
+		ID:  "my-other-cool-thing",
+		Foo: "xyz",
+	}
+
+	err := txn.Insert("main", obj1)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	err = txn.Insert("main", obj2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	err = txn.Insert("main", obj3)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Delete a prefix
+	num, err := txn.DeleteAll("main", "id_prefix", "my-")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if num != 3 {
+		t.Fatalf("bad: %d", num)
+	}
+
+	// Ensure we cannot lookup
+	raw, err := txn.First("main", "id_prefix", "my-")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
