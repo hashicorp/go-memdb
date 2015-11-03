@@ -361,6 +361,57 @@ func TestTxn_InsertGet_Simple(t *testing.T) {
 	checkResult(txn)
 }
 
+func TestTxn_InsertBatch(t *testing.T) {
+	db := testDB(t)
+	txn := db.Txn(true)
+
+	obj1 := &TestObject{
+		ID:  "my-cool-thing",
+		Foo: "abc",
+	}
+	obj2 := &TestObject{
+		ID:  "my-other-cool-thing",
+		Foo: "xyz",
+	}
+	obj3 := &TestObject{
+		ID:  "yet-another-cool-thing",
+		Foo: "xyb",
+	}
+
+	err := txn.InsertBatch("main", obj1, obj2, obj3)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	raw, err := txn.First("main", "foo", obj1.Foo)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if raw != obj1 {
+		t.Fatalf("bad: %#v %#v", raw, obj1)
+	}
+
+	raw, err = txn.First("main", "foo", obj2.Foo)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if raw != obj2 {
+		t.Fatalf("bad: %#v %#v", raw, obj2)
+	}
+
+	raw, err = txn.First("main", "foo", obj3.Foo)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if raw != obj3 {
+		t.Fatalf("bad: %#v %#v", raw, obj3)
+	}
+
+}
+
 func TestTxn_DeleteAll_Simple(t *testing.T) {
 	db := testDB(t)
 	txn := db.Txn(true)
