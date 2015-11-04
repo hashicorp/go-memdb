@@ -70,11 +70,12 @@ func (txn *Txn) writableIndex(table, index string) *iradix.Txn {
 	raw, _ := txn.rootTxn.Get(path)
 	indexTxn := raw.(*iradix.Tree).Txn()
 
-	// If we are the primary DB, enable mutation notification
+	// If we are the primary DB, enable mutation tracking.
 	// Snapshots should not notify, otherwise we will trigger watches
 	// on the primary DB when the writes will not be visible.
 	if txn.db.primary {
-		indexTxn.NotifyMutate(true)
+		indexTxn.TrackMutate(true)
+		txn.Defer(indexTxn.Notify)
 	}
 
 	// Keep this open for the duration of the txn
