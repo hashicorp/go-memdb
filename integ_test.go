@@ -1,6 +1,9 @@
 package memdb
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 // Test that multiple concurrent transactions are isolated from each other
 func TestTxn_Isolation(t *testing.T) {
@@ -175,6 +178,44 @@ func TestComplexDB(t *testing.T) {
 	place := raw.(*TestPlace)
 	if place.Name != "Maui" {
 		t.Fatalf("bad place (but isn't anywhere else really?): %v", place)
+	}
+}
+
+func TestWatchUpdate(t *testing.T) {
+	db := testComplexDB(t)
+	testPopulateData(t, db)
+	txn := db.Txn(false) // read only
+
+	watchSetSpecific := NewWatchSet()
+	watchSetPrefix := NewWatchSet()
+
+	// Get using a full name
+	watch, raw, err := txn.FirstWatch("people", "name", "Armon", "Dadgar")
+	noErr(t, err)
+	if raw == nil {
+		t.Fatalf("should get person")
+	}
+	watchSetSpecific.Add(watch)
+
+	// Get using a prefix
+	watch, raw, err = txn.FirstWatch("people", "name_prefix", "Armon")
+	noErr(t, err)
+	if raw == nil {
+		t.Fatalf("should get person")
+	}
+	watchSetPrefix.Add(watch)
+
+	txn2 := db.Txn(true) // write
+	noErr(t, txn2.Delete("people", raw))
+	txn2.Commit()
+
+	// Both watches should trigger!
+	timeout := time.After(time.Second)
+	if timeout := watchSetSpecific.Watch(timeout); timeout {
+		t.Fatalf("should not timeout")
+	}
+	if timeout := watchSetPrefix.Watch(timeout); timeout {
+		t.Fatalf("should not timeout")
 	}
 }
 
