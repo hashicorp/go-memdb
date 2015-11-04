@@ -11,8 +11,9 @@ import (
 // on values. The database makes use of immutable radix trees to provide
 // transactions and MVCC.
 type MemDB struct {
-	schema *DBSchema
-	root   *iradix.Tree
+	schema  *DBSchema
+	root    *iradix.Tree
+	primary bool
 
 	// There can only be a single writter at once
 	writer sync.Mutex
@@ -27,8 +28,9 @@ func NewMemDB(schema *DBSchema) (*MemDB, error) {
 
 	// Create the MemDB
 	db := &MemDB{
-		schema: schema,
-		root:   iradix.New(),
+		schema:  schema,
+		root:    iradix.New(),
+		primary: true,
 	}
 	if err := db.initialize(); err != nil {
 		return nil, err
@@ -55,8 +57,9 @@ func (db *MemDB) Txn(write bool) *Txn {
 // operations to the existing DB.
 func (db *MemDB) Snapshot() *MemDB {
 	clone := &MemDB{
-		schema: db.schema,
-		root:   db.root,
+		schema:  db.schema,
+		root:    db.root,
+		primary: false,
 	}
 	return clone
 }
