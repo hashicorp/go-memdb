@@ -515,23 +515,24 @@ func TestTxn_Connect(t *testing.T) {
 	}
 
 	//Test if some attributes is missied
-	misslink := &Link{Index: "123", Arg1: 123, Arg2: 123, Attributes: []string{"123"}}
+	misslink := &Link{Index:"123", Arg1: 123, Arg2: 123, Attributes:[]string{"123"}}
 	err = txn.Connect(misslink)
-	if err == nil {
+	if err == nil{
 		t.Fatalf("Must be error, cause Table is empty")
 	}
 
 	err = txn.Connect(&Link{
-		Table:      "main",
-		Index:      "ID",
-		Arg1:       obj1.ID,
-		Arg2:       obj2.ID,
+		Table: "main",
+		Index: "ID",
+		Arg1: obj1.ID,
+		Arg2: obj2.ID,
 		Attributes: []string{"Work"},
 	})
 
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
+
 
 }
 
@@ -567,10 +568,10 @@ func TestTxn_GetLinks(t *testing.T) {
 	}
 
 	err = txn.Connect(&Link{
-		Table:      "main",
-		Index:      "id",
-		Arg1:       obj1.ID,
-		Arg2:       obj2.ID,
+		Table: "main",
+		Index: "id",
+		Arg1: obj1.ID,
+		Arg2: obj2.ID,
 		Attributes: []string{"Work"},
 	})
 
@@ -579,10 +580,10 @@ func TestTxn_GetLinks(t *testing.T) {
 	}
 
 	err = txn.Connect(&Link{
-		Table:      "main",
-		Index:      "id",
-		Arg1:       obj1.ID,
-		Arg2:       obj3.ID,
+		Table: "main",
+		Index: "id",
+		Arg1: obj1.ID,
+		Arg2: obj3.ID,
 		Attributes: []string{"Work"},
 	})
 
