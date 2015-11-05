@@ -13,6 +13,7 @@ import (
 type MemDB struct {
 	schema *DBSchema
 	root   *iradix.Tree
+	links map[string][]*Link
 
 	// There can only be a single writter at once
 	writer sync.Mutex
