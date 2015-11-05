@@ -486,6 +486,120 @@ func TestTxn_DeleteAll_Prefix(t *testing.T) {
 	}
 }
 
+func TestTxn_Connect(t *testing.T) {
+	db := testDB(t)
+	txn := db.Txn(true)
+
+	obj1 := &TestObject{
+		ID:  "my-object",
+		Foo: "abc",
+	}
+	obj2 := &TestObject{
+		ID:  "my-cool-thing",
+		Foo: "xyz",
+	}
+
+	err := txn.Insert("main", obj1)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	err = txn.Insert("main", obj2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	//Test input as nil
+	err = txn.Connect(nil)
+	if err == nil {
+		t.Fatalf("must be error")
+	}
+
+	//Test if some attributes is missied
+	misslink := &Link{Index: "123", Arg1: 123, Arg2: 123, Attributes: []string{"123"}}
+	err = txn.Connect(misslink)
+	if err == nil {
+		t.Fatalf("Must be error, cause Table is empty")
+	}
+
+	err = txn.Connect(&Link{
+		Table:      "main",
+		Index:      "ID",
+		Arg1:       obj1.ID,
+		Arg2:       obj2.ID,
+		Attributes: []string{"Work"},
+	})
+
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+}
+
+func TestTxn_GetLinks(t *testing.T) {
+	db := testDB(t)
+	txn := db.Txn(true)
+
+	obj1 := &TestObject{
+		ID:  "my-object",
+		Foo: "abc",
+	}
+	obj2 := &TestObject{
+		ID:  "my-cool-thing",
+		Foo: "xyz",
+	}
+
+	obj3 := &TestObject{
+		ID:  "my-other-cool-thing",
+		Foo: "xyz",
+	}
+
+	err := txn.Insert("main", obj1)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	err = txn.Insert("main", obj2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	err = txn.Insert("main", obj3)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err = txn.Connect(&Link{
+		Table:      "main",
+		Index:      "id",
+		Arg1:       obj1.ID,
+		Arg2:       obj2.ID,
+		Attributes: []string{"Work"},
+	})
+
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err = txn.Connect(&Link{
+		Table:      "main",
+		Index:      "id",
+		Arg1:       obj1.ID,
+		Arg2:       obj3.ID,
+		Attributes: []string{"Work"},
+	})
+
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	res, errlinks := txn.GetLinks("main", "id", "Work", obj1.ID)
+	if errlinks != nil {
+		t.Fatalf("err: %v", errlinks)
+	}
+
+	if len(res) != 2 {
+		t.Fatalf("Expected number of objects: %d. Found: %d", 2, len(res))
+	}
+}
+
 func TestTxn_InsertGet_Prefix(t *testing.T) {
 	db := testDB(t)
 	txn := db.Txn(true)
