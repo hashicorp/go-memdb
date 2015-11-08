@@ -7,6 +7,9 @@ import (
 	"github.com/hashicorp/go-immutable-radix"
 )
 
+const (
+	id = "id"
+)
 // tableIndex is a tuple of (Table, Index) used for lookups
 type tableIndex struct {
 	Table string
@@ -139,7 +142,7 @@ func (txn *Txn) Insert(table string, obj interface{}) error {
 	}
 
 	// Get the primary ID of the object
-	idSchema := tableSchema.Indexes["id"]
+	idSchema := tableSchema.Indexes[id]
 	ok, idVal, err := idSchema.Indexer.FromObject(obj)
 	if err != nil {
 		return fmt.Errorf("failed to build primary index: %v", err)
@@ -149,7 +152,7 @@ func (txn *Txn) Insert(table string, obj interface{}) error {
 	}
 
 	// Lookup the object by ID first, to see if this is an update
-	idTxn := txn.writableIndex(table, "id")
+	idTxn := txn.writableIndex(table, id)
 	existing, update := idTxn.Get(idVal)
 
 	// On an update, there is an existing object with the given
@@ -213,7 +216,7 @@ func (txn *Txn) Delete(table string, obj interface{}) error {
 	}
 
 	// Get the primary ID of the object
-	idSchema := tableSchema.Indexes["id"]
+	idSchema := tableSchema.Indexes[id]
 	ok, idVal, err := idSchema.Indexer.FromObject(obj)
 	if err != nil {
 		return fmt.Errorf("failed to build primary index: %v", err)
@@ -223,7 +226,7 @@ func (txn *Txn) Delete(table string, obj interface{}) error {
 	}
 
 	// Lookup the object by ID first, check fi we should continue
-	idTxn := txn.writableIndex(table, "id")
+	idTxn := txn.writableIndex(table, id)
 	existing, ok := idTxn.Get(idVal)
 	if !ok {
 		return fmt.Errorf("not found")
