@@ -2,6 +2,7 @@ package memdb
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/hashicorp/go-immutable-radix"
@@ -25,6 +26,7 @@ type Txn struct {
 	after   []func()
 
 	modified map[tableIndex]*iradix.Txn
+	links    map[string][]*Link
 }
 
 // readableIndex returns a transaction usable for reading the given
@@ -281,7 +283,7 @@ func (txn *Txn) DeleteAll(table, index string, args ...interface{}) (int, error)
 
 	// Do the deletes
 	num := 0
-	for _, obj := range(objs) {
+	for _, obj := range objs {
 		if err := txn.Delete(table, obj); err != nil {
 			return num, err
 		}
@@ -316,6 +318,70 @@ func (txn *Txn) First(table, index string, args ...interface{}) (interface{}, er
 	iter.SeekPrefix(val)
 	_, value, _ := iter.Next()
 	return value, nil
+}
+
+//Connect is used for linking between two objects
+func (txn *Txn) Connect(link *Link) error {
+	if link == nil {
+		return fmt.Errorf("Link object is nil")
+	}
+
+	if !txn.write {
+		return fmt.Errorf("cannot insert in read-only transaction")
+	}
+
+	if link.Table == "" {
+		return fmt.Errorf("Table field is empty")
+	}
+
+	if link.Index == "" {
+		return fmt.Errorf("Index field is empty")
+	}
+
+	if len(link.Attributes) == 0 {
+		return fmt.Errorf("Attributes field is empty")
+	}
+
+	if txn.db.links == nil {
+		txn.db.links = make(map[string][]*Link)
+	}
+
+	//range over all attributes in input and store it
+	for _, attribute := range link.Attributes {
+		addr := link.Table + "." + link.Index + "." + attribute
+		links, ok := txn.db.links[addr]
+		if !ok {
+			txn.db.links[addr] = []*Link{link}
+		} else {
+			links = append(links, link)
+			txn.db.links[addr] = links
+		}
+	}
+
+	return nil
+}
+
+//GetLinks returns objects which match 'attribute'
+func (txn *Txn) GetLinks(table, index, attribute string, obj interface{}) ([]interface{}, error) {
+	links, ok := txn.db.links[table+"."+index+"."+attribute]
+	if !ok {
+		return nil, fmt.Errorf("Attributes is not found")
+	}
+	if len(links) == 0 {
+		return nil, fmt.Errorf("Attributes is not found")
+	}
+
+	result := []interface{}{}
+	for _, link := range links {
+		if reflect.DeepEqual(link.Arg1, obj) {
+			raw, err := txn.First(table, index, link.Arg2)
+			if err != nil {
+				return nil, err
+			}
+			result = append(result, raw)
+		}
+	}
+	return result, nil
 }
 
 // getIndexValue is used to get the IndexSchema and the value
