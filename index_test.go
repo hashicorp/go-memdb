@@ -230,9 +230,9 @@ func generateUUID() ([]byte, string) {
 
 func TestFieldSetIndex_FromObject(t *testing.T) {
 	obj := testObj()
-	ptrIndexer := FieldSetIndex{"Bam"}
+	indexer := FieldSetIndex{"Bam"}
 
-	ok, val, err := ptrIndexer.FromObject(obj)
+	ok, val, err := indexer.FromObject(obj)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

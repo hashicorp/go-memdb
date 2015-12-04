@@ -36,7 +36,7 @@ type StringFieldIndex struct {
 
 func (s *StringFieldIndex) FromObject(obj interface{}) (bool, []byte, error) {
 	v := reflect.ValueOf(obj)
-	v = reflect.Indirect(v) // Derefence the pointer if any
+	v = reflect.Indirect(v) // Dereference the pointer if any
 
 	fv := v.FieldByName(s.Field)
 	if !fv.IsValid() {
@@ -98,7 +98,7 @@ type UUIDFieldIndex struct {
 
 func (u *UUIDFieldIndex) FromObject(obj interface{}) (bool, []byte, error) {
 	v := reflect.ValueOf(obj)
-	v = reflect.Indirect(v) // Derefence the pointer if any
+	v = reflect.Indirect(v) // Dereference the pointer if any
 
 	fv := v.FieldByName(u.Field)
 	if !fv.IsValid() {
@@ -184,7 +184,7 @@ type FieldSetIndex struct {
 
 func (f *FieldSetIndex) FromObject(obj interface{}) (bool, []byte, error) {
 	v := reflect.ValueOf(obj)
-	v = reflect.Indirect(v) // Derefence the pointer if any
+	v = reflect.Indirect(v) // Dereference the pointer if any
 
 	fv := v.FieldByName(f.Field)
 	if !fv.IsValid() {
