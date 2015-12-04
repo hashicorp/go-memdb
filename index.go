@@ -36,7 +36,7 @@ type StringFieldIndex struct {
 
 func (s *StringFieldIndex) FromObject(obj interface{}) (bool, []byte, error) {
 	v := reflect.ValueOf(obj)
-	v = reflect.Indirect(v) // Derefence the pointer if any
+	v = reflect.Indirect(v) // Dereference the pointer if any
 
 	fv := v.FieldByName(s.Field)
 	if !fv.IsValid() {
@@ -98,7 +98,7 @@ type UUIDFieldIndex struct {
 
 func (u *UUIDFieldIndex) FromObject(obj interface{}) (bool, []byte, error) {
 	v := reflect.ValueOf(obj)
-	v = reflect.Indirect(v) // Derefence the pointer if any
+	v = reflect.Indirect(v) // Dereference the pointer if any
 
 	fv := v.FieldByName(u.Field)
 	if !fv.IsValid() {
@@ -173,6 +173,44 @@ func (u *UUIDFieldIndex) parseString(s string) ([]byte, error) {
 	copy(buf[8:10], part4)
 	copy(buf[10:16], part5)
 	return buf, nil
+}
+
+// FieldSetIndex is used to extract a field from an object using reflection and
+// builds an index on whether the field is set by comparing it against its
+// type's nil value.
+type FieldSetIndex struct {
+	Field string
+}
+
+func (f *FieldSetIndex) FromObject(obj interface{}) (bool, []byte, error) {
+	v := reflect.ValueOf(obj)
+	v = reflect.Indirect(v) // Dereference the pointer if any
+
+	fv := v.FieldByName(f.Field)
+	if !fv.IsValid() {
+		return false, nil,
+			fmt.Errorf("field '%s' for %#v is invalid", f.Field, obj)
+	}
+
+	if fv.Interface() == reflect.Zero(fv.Type()).Interface() {
+		return true, []byte{0}, nil
+	}
+
+	return true, []byte{1}, nil
+}
+
+func (f *FieldSetIndex) FromArgs(args ...interface{}) ([]byte, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("must provide only a single argument")
+	}
+
+	if val, ok := args[0].(bool); !ok {
+		return nil, fmt.Errorf("argument must be a boolean type: %#v", args[0])
+	} else if val {
+		return []byte{1}, nil
+	}
+
+	return []byte{0}, nil
 }
 
 // CompoundIndex is used to build an index using multiple sub-indexes

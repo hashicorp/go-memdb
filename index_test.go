@@ -12,15 +12,18 @@ type TestObject struct {
 	Foo   string
 	Bar   int
 	Baz   string
+	Bam   *bool
 	Empty string
 }
 
 func testObj() *TestObject {
+	b := true
 	obj := &TestObject{
 		ID:  "my-cool-obj",
 		Foo: "Testing",
 		Bar: 42,
 		Baz: "yep",
+		Bam: &b,
 	}
 	return obj
 }
@@ -223,6 +226,94 @@ func generateUUID() ([]byte, string) {
 		buf[8:10],
 		buf[10:16])
 	return buf, uuid
+}
+
+func TestFieldSetIndex_FromObject(t *testing.T) {
+	obj := testObj()
+	indexer := FieldSetIndex{"Bam"}
+
+	ok, val, err := indexer.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(val) != 1 || val[0] != 1 {
+		t.Fatalf("bad: %v", val)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+
+	emptyIndexer := FieldSetIndex{"Empty"}
+	ok, val, err = emptyIndexer.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(val) != 1 || val[0] != 0 {
+		t.Fatalf("bad: %v", val)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+
+	setIndexer := FieldSetIndex{"Bar"}
+	ok, val, err = setIndexer.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(val) != 1 || val[0] != 1 {
+		t.Fatalf("bad: %v", val)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+
+	badField := FieldSetIndex{"NA"}
+	ok, val, err = badField.FromObject(obj)
+	if err == nil {
+		t.Fatalf("should get error")
+	}
+
+	obj.Bam = nil
+	nilIndexer := FieldSetIndex{"Bam"}
+	ok, val, err = nilIndexer.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(val) != 1 || val[0] != 0 {
+		t.Fatalf("bad: %v", val)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+}
+
+func TestFieldSetIndex_FromArgs(t *testing.T) {
+	indexer := FieldSetIndex{"Bam"}
+	_, err := indexer.FromArgs()
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	_, err = indexer.FromArgs(42)
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	val, err := indexer.FromArgs(true)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(val) != 1 || val[0] != 1 {
+		t.Fatalf("bad: %v", val)
+	}
+
+	val, err = indexer.FromArgs(false)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(val) != 1 || val[0] != 0 {
+		t.Fatalf("bad: %v", val)
+	}
 }
 
 func TestCompoundIndex_FromObject(t *testing.T) {
