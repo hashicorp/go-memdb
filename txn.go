@@ -10,6 +10,7 @@ import (
 const (
 	id = "id"
 )
+
 // tableIndex is a tuple of (Table, Index) used for lookups
 type tableIndex struct {
 	Table string
@@ -281,7 +282,7 @@ func (txn *Txn) DeleteAll(table, index string, args ...interface{}) (int, error)
 
 	// Do the deletes
 	num := 0
-	for _, obj := range(objs) {
+	for _, obj := range objs {
 		if err := txn.Delete(table, obj); err != nil {
 			return num, err
 		}
@@ -293,7 +294,6 @@ func (txn *Txn) DeleteAll(table, index string, args ...interface{}) (int, error)
 // First is used to return the first matching object for
 // the given constraints on the index
 func (txn *Txn) First(table, index string, args ...interface{}) (interface{}, error) {
-	// Get the index value
 	indexSchema, val, err := txn.getIndexValue(table, index, args...)
 	if err != nil {
 		return nil, err
@@ -312,10 +312,45 @@ func (txn *Txn) First(table, index string, args ...interface{}) (interface{}, er
 	}
 
 	// Handle non-unique index by using an iterator and getting the first value
+	nodes, err := txn.Find(table, index, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(nodes) == 0 {
+		return nil, nil
+	}
+
+	return nodes[0], nil
+}
+
+// Find is used to return all objects for the given constraints on the index
+func (txn *Txn) Find(table, index string, args ...interface{}) ([]interface{}, error) {
+	// Get the index value
+	indexSchema, val, err := txn.getIndexValue(table, index, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the index itself
+	indexTxn := txn.readableIndex(table, indexSchema.Name)
+
+	// Handle non-unique index by using an iterator
 	iter := indexTxn.Root().Iterator()
-	iter.SeekPrefix(val)
-	_, value, _ := iter.Next()
-	return value, nil
+	iter.SeekPartialPrefix(val, false)
+
+	// Find all remaining tree objects that share the common prefix.
+	var objs []interface{}
+	for {
+		_, obj, _ := iter.Next()
+		if obj == nil {
+			break
+		}
+
+		objs = append(objs, obj)
+	}
+
+	return objs, nil
 }
 
 // getIndexValue is used to get the IndexSchema and the value
