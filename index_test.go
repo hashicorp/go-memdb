@@ -236,11 +236,11 @@ func TestFieldSetIndex_FromObject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if len(val) != 1 || val[0] != 1 {
-		t.Fatalf("bad: %v", val)
-	}
 	if !ok {
 		t.Fatalf("should be ok")
+	}
+	if len(val) != 1 || val[0] != 1 {
+		t.Fatalf("bad: %v", val)
 	}
 
 	emptyIndexer := FieldSetIndex{"Empty"}
@@ -248,11 +248,11 @@ func TestFieldSetIndex_FromObject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if len(val) != 1 || val[0] != 0 {
-		t.Fatalf("bad: %v", val)
-	}
 	if !ok {
 		t.Fatalf("should be ok")
+	}
+	if len(val) != 1 || val[0] != 0 {
+		t.Fatalf("bad: %v", val)
 	}
 
 	setIndexer := FieldSetIndex{"Bar"}
@@ -279,11 +279,11 @@ func TestFieldSetIndex_FromObject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if len(val) != 1 || val[0] != 0 {
-		t.Fatalf("bad: %v", val)
-	}
 	if !ok {
 		t.Fatalf("should be ok")
+	}
+	if len(val) != 1 || val[0] != 0 {
+		t.Fatalf("bad: %v", val)
 	}
 }
 
@@ -340,11 +340,11 @@ func TestConditionalIndex_FromObject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if len(val) != 1 || val[0] != 1 {
-		t.Fatalf("bad: %v", val)
-	}
 	if !ok {
 		t.Fatalf("should be ok")
+	}
+	if len(val) != 1 || val[0] != 1 {
+		t.Fatalf("bad: %v", val)
 	}
 
 	// Change the object so it should return false.
@@ -353,11 +353,11 @@ func TestConditionalIndex_FromObject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if len(val) != 1 || val[0] != 0 {
-		t.Fatalf("bad: %v", val)
-	}
 	if !ok {
 		t.Fatalf("should be ok")
+	}
+	if len(val) != 1 || val[0] != 0 {
+		t.Fatalf("bad: %v", val)
 	}
 
 	// Pass an invalid type.

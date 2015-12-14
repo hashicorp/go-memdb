@@ -215,7 +215,7 @@ type ConditionalIndex struct {
 type ConditionalIndexFunc func(obj interface{}) (bool, error)
 
 func (c *ConditionalIndex) FromObject(obj interface{}) (bool, []byte, error) {
-	// Call the users function
+	// Call the user's function
 	res, err := c.Conditional(obj)
 	if err != nil {
 		return false, nil, fmt.Errorf("ConditionalIndexFunc(%#v) failed: %v", obj, err)
