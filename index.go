@@ -121,7 +121,12 @@ func (u *UUIDFieldIndex) FromArgs(args ...interface{}) ([]byte, error) {
 	}
 	switch arg := args[0].(type) {
 	case string:
-		return u.parseString(arg)
+		if len(arg) != 36 {
+			arg = strings.Replace(arg, "-", "", -1)
+			return hex.DecodeString(arg)
+		} else {
+			return u.parseString(arg)
+		}
 	case []byte:
 		if len(arg) != 16 {
 			return nil, fmt.Errorf("byte slice must be 16 characters")

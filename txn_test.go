@@ -151,6 +151,75 @@ func TestTxn_InsertUpdate_First_NonUnique(t *testing.T) {
 	}
 }
 
+func TestTxn_Find(t *testing.T) {
+	db := testDB(t)
+	txn := db.Txn(true)
+
+	obj := &TestObject{
+		ID:  "my-first-object",
+		Foo: "foo",
+	}
+	obj2 := &TestObject{
+		ID:  "my-cool-object",
+		Foo: "bar",
+	}
+	obj3 := &TestObject{
+		ID:  "my-cool-second-object",
+		Foo: "baz",
+	}
+	obj4 := &TestObject{
+		ID:  "my-ordinary-fourth-object",
+		Foo: "baz",
+	}
+
+	err := txn.Insert("main", obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	err = txn.Insert("main", obj2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	err = txn.Insert("main", obj3)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	err = txn.Insert("main", obj4)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	raw, err := txn.Find("main", "id", "my-cool")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// there should be two objects
+	if len(raw) != 2 {
+		t.Fatalf("bad: expected two objects, got: %#v", raw)
+	}
+
+	// the objects should not be equal
+	if raw[0] == raw[1] {
+		t.Fatalf("bad: expected non-equal objects, got: %#v", raw)
+	}
+
+	for _, result := range raw {
+		if result != obj2 && result != obj3 {
+			t.Fatalf("bad: object is not expected, got: %#v", raw)
+		}
+	}
+
+	raw, err = txn.Find("main", "id", "my+")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if len(raw) != 0 {
+		t.Fatalf("bad: expected zero objects, got: %#v", raw)
+	}
+}
+
 func TestTxn_First_NonUnique_Multiple(t *testing.T) {
 	db := testDB(t)
 	txn := db.Txn(true)
