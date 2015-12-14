@@ -316,6 +316,86 @@ func TestFieldSetIndex_FromArgs(t *testing.T) {
 	}
 }
 
+var (
+	// A conditional that checks if TestObject.Bar == 42
+	conditional = func(obj interface{}) (bool, error) {
+		test, ok := obj.(*TestObject)
+		if !ok {
+			return false, fmt.Errorf("Expect only TestObj types")
+		}
+
+		if test.Bar != 42 {
+			return false, nil
+		}
+
+		return true, nil
+	}
+)
+
+func TestConditionalIndex_FromObject(t *testing.T) {
+	obj := testObj()
+	indexer := ConditionalIndex{conditional}
+	obj.Bar = 42
+	ok, val, err := indexer.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(val) != 1 || val[0] != 1 {
+		t.Fatalf("bad: %v", val)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+
+	// Change the object so it should return false.
+	obj.Bar = 2
+	ok, val, err = indexer.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(val) != 1 || val[0] != 0 {
+		t.Fatalf("bad: %v", val)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+
+	// Pass an invalid type.
+	ok, val, err = indexer.FromObject(t)
+	if err == nil {
+		t.Fatalf("expected an error when passing invalid type")
+	}
+}
+
+func TestConditionalIndex_FromArgs(t *testing.T) {
+	indexer := ConditionalIndex{conditional}
+	_, err := indexer.FromArgs()
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	_, err = indexer.FromArgs(42)
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	val, err := indexer.FromArgs(true)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(val) != 1 || val[0] != 1 {
+		t.Fatalf("bad: %v", val)
+	}
+
+	val, err = indexer.FromArgs(false)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(val) != 1 || val[0] != 0 {
+		t.Fatalf("bad: %v", val)
+	}
+}
+
 func TestCompoundIndex_FromObject(t *testing.T) {
 	obj := testObj()
 	indexer := &CompoundIndex{

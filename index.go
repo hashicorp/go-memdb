@@ -200,6 +200,42 @@ func (f *FieldSetIndex) FromObject(obj interface{}) (bool, []byte, error) {
 }
 
 func (f *FieldSetIndex) FromArgs(args ...interface{}) ([]byte, error) {
+	return fromBoolArgs(args)
+}
+
+// ConditionalIndex builds an index based on a condition specified by a passed
+// user function. This function may examine the passed object and return a
+// boolean to encapsulate an arbitrarily complex conditional.
+type ConditionalIndex struct {
+	Conditional ConditionalIndexFunc
+}
+
+// ConditionalIndexFunc is the required function interface for a
+// ConditionalIndex.
+type ConditionalIndexFunc func(obj interface{}) (bool, error)
+
+func (c *ConditionalIndex) FromObject(obj interface{}) (bool, []byte, error) {
+	// Call the users function
+	res, err := c.Conditional(obj)
+	if err != nil {
+		return false, nil, fmt.Errorf("ConditionalIndexFunc(%#v) failed: %v", obj, err)
+	}
+
+	if res {
+		return true, []byte{1}, nil
+	}
+
+	return true, []byte{0}, nil
+}
+
+func (c *ConditionalIndex) FromArgs(args ...interface{}) ([]byte, error) {
+	return fromBoolArgs(args)
+}
+
+// fromBoolArgs is a helper that expects only a single boolean argument and
+// returns a single length byte array containing either a one or zero depending
+// on whether the passed input is true or false respectively.
+func fromBoolArgs(args []interface{}) ([]byte, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("must provide only a single argument")
 	}
