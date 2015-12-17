@@ -133,6 +133,21 @@ func (u *UUIDFieldIndex) FromArgs(args ...interface{}) ([]byte, error) {
 	}
 }
 
+func (u *UUIDFieldIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("must provide only a single argument")
+	}
+	switch arg := args[0].(type) {
+	case string:
+		return u.parsePartialString(arg)
+	case []byte:
+		return arg, nil
+	default:
+		return nil,
+			fmt.Errorf("argument must be a string or byte slice: %#v", args[0])
+	}
+}
+
 func (u *UUIDFieldIndex) parseString(s string) ([]byte, error) {
 	// Verify the length
 	if len(s) != 36 {
@@ -172,6 +187,49 @@ func (u *UUIDFieldIndex) parseString(s string) ([]byte, error) {
 	copy(buf[6:8], part3)
 	copy(buf[8:10], part4)
 	copy(buf[10:16], part5)
+	return buf, nil
+}
+
+// parsePartialString parses a partial UUID from the string and returns its
+// value as a byte.
+func (u *UUIDFieldIndex) parsePartialString(s string) ([]byte, error) {
+	inputLength := len(s)
+	if inputLength == 0 {
+		return []byte{}, nil
+	}
+
+	parts := strings.Split(s, "-")
+	partsLength := len(parts)
+	if partsLength > 5 {
+		return nil, fmt.Errorf(`UUID should only have 4 "-" seperators`)
+	}
+
+	// Create the buffer. The sanatized length is the length of the original string
+	// without the "-" and the potentially necessary padding to make the input
+	// even.
+	sanatizedLength := inputLength - partsLength + 1 + (inputLength % 2)
+	buf := make([]byte, hex.DecodedLen(sanatizedLength))
+
+	// Decode each of the parts
+	index := 0
+	for _, part := range parts {
+		// Have to make the string even length. We append the 0 to the end
+		// because each part of full length UUID is even. Thus if we are at an
+		// odd length, there would be a next character to fill the lower order
+		// part of the byte. We are essentially creating the mask (pair & 0xf0)
+		if len(part)%2 == 1 {
+			part = part + "0"
+		}
+
+		dec, err := hex.DecodeString(part)
+		if err != nil {
+			return nil, fmt.Errorf("Invalid UUID: %v", err)
+		}
+		partLength := len(dec)
+		copy(buf[index:index+partLength], dec)
+		index += partLength
+	}
+
 	return buf, nil
 }
 
