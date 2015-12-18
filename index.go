@@ -153,13 +153,16 @@ func (u *UUIDFieldIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
 // is not even length.
 func (u *UUIDFieldIndex) parseString(s string, enforceLength bool) ([]byte, error) {
 	// Verify the length
-	if enforceLength && len(s) != 36 {
+	l := len(s)
+	if enforceLength && l != 36 {
 		return nil, fmt.Errorf("UUID must be 36 characters")
+	} else if l > 36 {
+		return nil, fmt.Errorf("Invalid UUID length. UUID have 36 characters; got %d", l)
 	}
 
 	hyphens := strings.Count(s, "-")
 	if hyphens > 4 {
-		return nil, fmt.Errorf(`UUID prefix should have maximum of 4 "-"; got %d`, hyphens)
+		return nil, fmt.Errorf(`UUID should have maximum of 4 "-"; got %d`, hyphens)
 	}
 
 	// The sanitized length is the length of the original string without the "-".
