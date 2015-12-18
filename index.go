@@ -111,7 +111,7 @@ func (u *UUIDFieldIndex) FromObject(obj interface{}) (bool, []byte, error) {
 		return false, nil, nil
 	}
 
-	buf, err := u.parseString(val)
+	buf, err := u.parseString(val, true)
 	return true, buf, err
 }
 
@@ -121,7 +121,7 @@ func (u *UUIDFieldIndex) FromArgs(args ...interface{}) ([]byte, error) {
 	}
 	switch arg := args[0].(type) {
 	case string:
-		return u.parseString(arg)
+		return u.parseString(arg, true)
 	case []byte:
 		if len(arg) != 16 {
 			return nil, fmt.Errorf("byte slice must be 16 characters")
@@ -139,7 +139,7 @@ func (u *UUIDFieldIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
 	}
 	switch arg := args[0].(type) {
 	case string:
-		return u.parsePartialString(arg)
+		return u.parseString(arg, false)
 	case []byte:
 		return arg, nil
 	default:
@@ -148,58 +148,18 @@ func (u *UUIDFieldIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
 	}
 }
 
-func (u *UUIDFieldIndex) parseString(s string) ([]byte, error) {
+// parseString parses a UUID from the string. If enforceLength is false, it will
+// parse a partial UUID. An error is returned if the input, stripped of hyphens,
+// is not even length.
+func (u *UUIDFieldIndex) parseString(s string, enforceLength bool) ([]byte, error) {
 	// Verify the length
-	if len(s) != 36 {
+	if enforceLength && len(s) != 36 {
 		return nil, fmt.Errorf("UUID must be 36 characters")
 	}
 
-	// Decode each of the parts
-	part1, err := hex.DecodeString(s[0:8])
-	if err != nil {
-		return nil, fmt.Errorf("Invalid UUID: %v", err)
-	}
-
-	part2, err := hex.DecodeString(s[9:13])
-	if err != nil {
-		return nil, fmt.Errorf("Invalid UUID: %v", err)
-	}
-
-	part3, err := hex.DecodeString(s[14:18])
-	if err != nil {
-		return nil, fmt.Errorf("Invalid UUID: %v", err)
-	}
-
-	part4, err := hex.DecodeString(s[19:23])
-	if err != nil {
-		return nil, fmt.Errorf("Invalid UUID: %v", err)
-	}
-
-	part5, err := hex.DecodeString(s[24:])
-	if err != nil {
-		return nil, fmt.Errorf("Invalid UUID: %v", err)
-	}
-
-	// Copy into a single buffer
-	buf := make([]byte, 16)
-	copy(buf[0:4], part1)
-	copy(buf[4:6], part2)
-	copy(buf[6:8], part3)
-	copy(buf[8:10], part4)
-	copy(buf[10:16], part5)
-	return buf, nil
-}
-
-// parsePartialString parses a partial UUID from the string and returns its
-// value as a byte slice. An error is returned if the input string, stripped of
-// hyphens, is not even in length.
-func (u *UUIDFieldIndex) parsePartialString(s string) ([]byte, error) {
-	if len(s) == 0 {
-		return []byte{}, nil
-	}
-
-	if c := strings.Count(s, "-"); c > 4 {
-		return nil, fmt.Errorf(`UUID prefix should have maximum of 4 "-"; got %d`, c)
+	hyphens := strings.Count(s, "-")
+	if hyphens > 4 {
+		return nil, fmt.Errorf(`UUID prefix should have maximum of 4 "-"; got %d`, hyphens)
 	}
 
 	// The sanitized length is the length of the original string without the "-".
@@ -213,7 +173,8 @@ func (u *UUIDFieldIndex) parsePartialString(s string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Invalid UUID: %v", err)
 	}
-	return dec, nil
+
+	return dec, err
 }
 
 // FieldSetIndex is used to extract a field from an object using reflection and
