@@ -133,14 +133,14 @@ func TestStringFieldIndex_PrefixFromArgs(t *testing.T) {
 
 func TestUUIDFeldIndex_parseString(t *testing.T) {
 	u := &UUIDFieldIndex{}
-	_, err := u.parseString("invalid")
+	_, err := u.parseString("invalid", true)
 	if err == nil {
 		t.Fatalf("should error")
 	}
 
 	buf, uuid := generateUUID()
 
-	out, err := u.parseString(uuid)
+	out, err := u.parseString(uuid, true)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -148,29 +148,14 @@ func TestUUIDFeldIndex_parseString(t *testing.T) {
 	if !bytes.Equal(out, buf) {
 		t.Fatalf("bad: %#v %#v", out, buf)
 	}
-}
 
-func TestUUIDFeldIndex_parsePartialString(t *testing.T) {
-	u := &UUIDFieldIndex{}
-	_, err := u.parsePartialString("1-2-3-4-5-6")
+	_, err = u.parseString("1-2-3-4-5-6", false)
 	if err == nil {
 		t.Fatalf("should error")
-	}
-
-	buf, uuid := generateUUID()
-
-	// Parse the full UUID.
-	out, err := u.parsePartialString(uuid)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if !bytes.Equal(out, buf) {
-		t.Fatalf("bad: %#v %#v", out, buf)
 	}
 
 	// Parse an empty string.
-	out, err = u.parsePartialString("")
+	out, err = u.parseString("", false)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -182,14 +167,14 @@ func TestUUIDFeldIndex_parsePartialString(t *testing.T) {
 
 	// Parse an odd length UUID.
 	input := "f23"
-	out, err = u.parsePartialString(input)
+	out, err = u.parseString(input, false)
 	if err == nil {
 		t.Fatalf("expect error")
 	}
 
 	// Parse an even length UUID with hyphen.
 	input = "20d8c509-3940-"
-	out, err = u.parsePartialString(input)
+	out, err = u.parseString(input, false)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -198,7 +183,6 @@ func TestUUIDFeldIndex_parsePartialString(t *testing.T) {
 	if !bytes.Equal(out, expected) {
 		t.Fatalf("bad: %#v %#v", out, expected)
 	}
-
 }
 
 func TestUUIDFieldIndex_FromObject(t *testing.T) {
@@ -319,18 +303,7 @@ func BenchmarkUUIDFieldIndex_parseString(b *testing.B) {
 	_, uuid := generateUUID()
 	indexer := &UUIDFieldIndex{}
 	for i := 0; i < b.N; i++ {
-		_, err := indexer.parseString(uuid)
-		if err != nil {
-			b.FailNow()
-		}
-	}
-}
-
-func BenchmarkUUIDFieldIndex_parsePartialString(b *testing.B) {
-	_, uuid := generateUUID()
-	indexer := &UUIDFieldIndex{}
-	for i := 0; i < b.N; i++ {
-		_, err := indexer.parsePartialString(uuid)
+		_, err := indexer.parseString(uuid, true)
 		if err != nil {
 			b.FailNow()
 		}
