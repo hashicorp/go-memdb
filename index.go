@@ -174,7 +174,7 @@ func (u *UUIDFieldIndex) parseString(s string, enforceLength bool) ([]byte, erro
 		return nil, fmt.Errorf("Invalid UUID: %v", err)
 	}
 
-	return dec, err
+	return dec, nil
 }
 
 // FieldSetIndex is used to extract a field from an object using reflection and
