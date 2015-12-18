@@ -183,37 +183,8 @@ func TestUUIDFeldIndex_parsePartialString(t *testing.T) {
 	// Parse an odd length UUID.
 	input := "f23"
 	out, err = u.parsePartialString(input)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	expected = []byte{0xf2, 0x30}
-	if !bytes.Equal(out, expected) {
-		t.Fatalf("bad: %#v %#v", out, expected)
-	}
-
-	// Parse an even length UUID.
-	input = "f23a"
-	out, err = u.parsePartialString(input)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	expected = []byte{0xf2, 0x3a}
-	if !bytes.Equal(out, expected) {
-		t.Fatalf("bad: %#v %#v", out, expected)
-	}
-
-	// Parse an odd length UUID with hyphen.
-	input = "6cd8d1df-"
-	out, err = u.parsePartialString(input)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	expected = []byte{0x6c, 0xd8, 0xd1, 0xdf}
-	if !bytes.Equal(out, expected) {
-		t.Fatalf("bad: %#v %#v", out, expected)
+	if err == nil {
+		t.Fatalf("expect error")
 	}
 
 	// Parse an even length UUID with hyphen.
@@ -355,7 +326,7 @@ func BenchmarkUUIDFieldIndex_parseString(b *testing.B) {
 	}
 }
 
-func BenchmarkUUIDFieldIndex_parseString2(b *testing.B) {
+func BenchmarkUUIDFieldIndex_parsePartialString(b *testing.B) {
 	_, uuid := generateUUID()
 	indexer := &UUIDFieldIndex{}
 	for i := 0; i < b.N; i++ {

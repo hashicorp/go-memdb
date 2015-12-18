@@ -149,6 +149,12 @@ func TestComplexDB(t *testing.T) {
 		t.Fatalf("should get person")
 	}
 
+	raw, err = txn.First("people", "id_prefix", raw.(*TestPerson).ID[:4])
+	noErr(t, err)
+	if raw == nil {
+		t.Fatalf("should get person")
+	}
+
 	// Get based on field set.
 	result, err := txn.Get("people", "sibling", true)
 	noErr(t, err)
