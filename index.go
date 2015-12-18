@@ -133,6 +133,21 @@ func (u *UUIDFieldIndex) FromArgs(args ...interface{}) ([]byte, error) {
 	}
 }
 
+func (u *UUIDFieldIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("must provide only a single argument")
+	}
+	switch arg := args[0].(type) {
+	case string:
+		return u.parsePartialString(arg)
+	case []byte:
+		return arg, nil
+	default:
+		return nil,
+			fmt.Errorf("argument must be a string or byte slice: %#v", args[0])
+	}
+}
+
 func (u *UUIDFieldIndex) parseString(s string) ([]byte, error) {
 	// Verify the length
 	if len(s) != 36 {
@@ -173,6 +188,32 @@ func (u *UUIDFieldIndex) parseString(s string) ([]byte, error) {
 	copy(buf[8:10], part4)
 	copy(buf[10:16], part5)
 	return buf, nil
+}
+
+// parsePartialString parses a partial UUID from the string and returns its
+// value as a byte slice. An error is returned if the input string, stripped of
+// hyphens, is not even in length.
+func (u *UUIDFieldIndex) parsePartialString(s string) ([]byte, error) {
+	if len(s) == 0 {
+		return []byte{}, nil
+	}
+
+	if c := strings.Count(s, "-"); c > 4 {
+		return nil, fmt.Errorf(`UUID prefix should have maximum of 4 "-"; got %d`, c)
+	}
+
+	// The sanitized length is the length of the original string without the "-".
+	sanitized := strings.Replace(s, "-", "", -1)
+	sanitizedLength := len(sanitized)
+	if sanitizedLength%2 != 0 {
+		return nil, fmt.Errorf("Input (without hyphens) must be even length")
+	}
+
+	dec, err := hex.DecodeString(sanitized)
+	if err != nil {
+		return nil, fmt.Errorf("Invalid UUID: %v", err)
+	}
+	return dec, nil
 }
 
 // FieldSetIndex is used to extract a field from an object using reflection and
