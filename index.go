@@ -103,20 +103,30 @@ func (s *StringFieldIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
 // it as a UUID. This is an optimization to using a StringFieldIndex
 // as the UUID can be more compactly represented in byte form.
 type UUIDFieldIndex struct {
-	Field string
+	Field     string
+	Extractor func(obj interface{}) (string, error)
 }
 
 func (u *UUIDFieldIndex) FromObject(obj interface{}) (bool, []byte, error) {
-	v := reflect.ValueOf(obj)
-	v = reflect.Indirect(v) // Dereference the pointer if any
+	var val string
+	var err error
+	if u.Extractor != nil {
+		val, err = u.Extractor(obj)
+		if err != nil {
+			return false, nil, err
+		}
+	} else {
+		v := reflect.ValueOf(obj)
+		v = reflect.Indirect(v) // Dereference the pointer if any
 
-	fv := v.FieldByName(u.Field)
-	if !fv.IsValid() {
-		return false, nil,
-			fmt.Errorf("field '%s' for %#v is invalid", u.Field, obj)
+		fv := v.FieldByName(u.Field)
+		if !fv.IsValid() {
+			return false, nil,
+				fmt.Errorf("field '%s' for %#v is invalid", u.Field, obj)
+		}
+		val = fv.String()
 	}
 
-	val := fv.String()
 	if val == "" {
 		return false, nil, nil
 	}

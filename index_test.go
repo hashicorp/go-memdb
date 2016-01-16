@@ -275,11 +275,18 @@ func TestUUIDFeldIndex_parseString(t *testing.T) {
 	}
 }
 
-func TestUUIDFieldIndex_FromObject(t *testing.T) {
+func TestUUIDFieldIndex_Extractor_FromObject(t *testing.T) {
 	obj := testObj()
 	uuidBuf, uuid := generateUUID()
 	obj.Foo = uuid
-	indexer := &UUIDFieldIndex{"Foo"}
+	indexer := &UUIDFieldIndex{"Foo", nil}
+	indexer.Extractor = func(obj interface{}) (string, error) {
+		typed, ok := obj.(*TestObject)
+		if !ok {
+			return "", fmt.Errorf("invalid type")
+		}
+		return typed.Foo, nil
+	}
 
 	ok, val, err := indexer.FromObject(obj)
 	if err != nil {
@@ -292,13 +299,46 @@ func TestUUIDFieldIndex_FromObject(t *testing.T) {
 		t.Fatalf("should be ok")
 	}
 
-	badField := &UUIDFieldIndex{"NA"}
+	badField := &UUIDFieldIndex{"NA", nil}
 	ok, val, err = badField.FromObject(obj)
 	if err == nil {
 		t.Fatalf("should get error")
 	}
 
-	emptyField := &UUIDFieldIndex{"Empty"}
+	emptyField := &UUIDFieldIndex{"Empty", nil}
+	ok, val, err = emptyField.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if ok {
+		t.Fatalf("should not ok")
+	}
+}
+
+func TestUUIDFieldIndex_FromObject(t *testing.T) {
+	obj := testObj()
+	uuidBuf, uuid := generateUUID()
+	obj.Foo = uuid
+	indexer := &UUIDFieldIndex{"Foo", nil}
+
+	ok, val, err := indexer.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !bytes.Equal(uuidBuf, val) {
+		t.Fatalf("bad: %s", val)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+
+	badField := &UUIDFieldIndex{"NA", nil}
+	ok, val, err = badField.FromObject(obj)
+	if err == nil {
+		t.Fatalf("should get error")
+	}
+
+	emptyField := &UUIDFieldIndex{"Empty", nil}
 	ok, val, err = emptyField.FromObject(obj)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -309,7 +349,7 @@ func TestUUIDFieldIndex_FromObject(t *testing.T) {
 }
 
 func TestUUIDFieldIndex_FromArgs(t *testing.T) {
-	indexer := &UUIDFieldIndex{"Foo"}
+	indexer := &UUIDFieldIndex{"Foo", nil}
 	_, err := indexer.FromArgs()
 	if err == nil {
 		t.Fatalf("should get err")
@@ -340,7 +380,7 @@ func TestUUIDFieldIndex_FromArgs(t *testing.T) {
 }
 
 func TestUUIDFieldIndex_PrefixFromArgs(t *testing.T) {
-	indexer := UUIDFieldIndex{"Foo"}
+	indexer := UUIDFieldIndex{"Foo", nil}
 	_, err := indexer.FromArgs()
 	if err == nil {
 		t.Fatalf("should get err")
@@ -665,7 +705,7 @@ func TestCompoundIndex_FromArgs(t *testing.T) {
 func TestCompoundIndex_PrefixFromArgs(t *testing.T) {
 	indexer := &CompoundIndex{
 		Indexes: []Indexer{
-			&UUIDFieldIndex{"ID"},
+			&UUIDFieldIndex{"ID", nil},
 			&StringFieldIndex{"Foo", false, nil},
 			&StringFieldIndex{"Baz", false, nil},
 		},
