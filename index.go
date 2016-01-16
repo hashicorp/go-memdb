@@ -32,19 +32,29 @@ type PrefixIndexer interface {
 type StringFieldIndex struct {
 	Field     string
 	Lowercase bool
+	Extractor func(obj interface{}) (string, error)
 }
 
 func (s *StringFieldIndex) FromObject(obj interface{}) (bool, []byte, error) {
-	v := reflect.ValueOf(obj)
-	v = reflect.Indirect(v) // Dereference the pointer if any
+	var val string
+	var err error
+	if s.Extractor != nil {
+		val, err = s.Extractor(obj)
+		if err != nil {
+			return false, nil, err
+		}
+	} else {
+		v := reflect.ValueOf(obj)
+		v = reflect.Indirect(v) // Dereference the pointer if any
 
-	fv := v.FieldByName(s.Field)
-	if !fv.IsValid() {
-		return false, nil,
-			fmt.Errorf("field '%s' for %#v is invalid", s.Field, obj)
+		fv := v.FieldByName(s.Field)
+		if !fv.IsValid() {
+			return false, nil,
+				fmt.Errorf("field '%s' for %#v is invalid", s.Field, obj)
+		}
+		val = fv.String()
 	}
 
-	val := fv.String()
 	if val == "" {
 		return false, nil, nil
 	}

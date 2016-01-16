@@ -28,9 +28,56 @@ func testObj() *TestObject {
 	return obj
 }
 
-func TestStringFieldIndex_FromObject(t *testing.T) {
+func BenchmarkStringFieldIndex(b *testing.B) {
 	obj := testObj()
-	indexer := StringFieldIndex{"Foo", false}
+	indexer := StringFieldIndex{"Foo", false, nil}
+
+	for i := 0; i < b.N; i++ {
+		indexer.FromObject(obj)
+	}
+}
+
+func BenchmarkStringFieldIndex_Extractor(b *testing.B) {
+	obj := testObj()
+	indexer := StringFieldIndex{"Foo", false, nil}
+	indexer.Extractor = func(obj interface{}) (string, error) {
+		typed, ok := obj.(*TestObject)
+		if !ok {
+			return "", fmt.Errorf("invalid type")
+		}
+		val := typed.Foo
+		return val, nil
+	}
+
+	for i := 0; i < b.N; i++ {
+		indexer.FromObject(obj)
+	}
+}
+
+//func BenchmarkStringFieldIndex_ExtractorUnsafe(b *testing.B) {
+//    obj := testObj()
+//    indexer := StringFieldIndex{"Foo", false, nil}
+//    indexer.Extractor = func(obj interface{}) (string, error) {
+//        typed := (**TestObject)(unsafe.Pointer(&obj))
+//        fmt.Printf("%#v", *typed)
+//        return (*typed).Foo, nil
+//    }
+
+//    for i := 0; i < b.N; i++ {
+//        indexer.FromObject(obj)
+//    }
+//}
+
+func TestStringFieldIndex_Extractor_FromObject(t *testing.T) {
+	obj := testObj()
+	indexer := StringFieldIndex{"Foo", false, nil}
+	indexer.Extractor = func(obj interface{}) (string, error) {
+		typed, ok := obj.(*TestObject)
+		if !ok {
+			return "", fmt.Errorf("invalid type")
+		}
+		return typed.Foo, nil
+	}
 
 	ok, val, err := indexer.FromObject(obj)
 	if err != nil {
@@ -43,7 +90,7 @@ func TestStringFieldIndex_FromObject(t *testing.T) {
 		t.Fatalf("should be ok")
 	}
 
-	lower := StringFieldIndex{"Foo", true}
+	lower := StringFieldIndex{"Foo", true, nil}
 	ok, val, err = lower.FromObject(obj)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -55,13 +102,56 @@ func TestStringFieldIndex_FromObject(t *testing.T) {
 		t.Fatalf("should be ok")
 	}
 
-	badField := StringFieldIndex{"NA", true}
+	badField := StringFieldIndex{"NA", true, nil}
 	ok, val, err = badField.FromObject(obj)
 	if err == nil {
 		t.Fatalf("should get error")
 	}
 
-	emptyField := StringFieldIndex{"Empty", true}
+	emptyField := StringFieldIndex{"Empty", true, nil}
+	ok, val, err = emptyField.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if ok {
+		t.Fatalf("should not ok")
+	}
+}
+
+func TestStringFieldIndex_FromObject(t *testing.T) {
+	obj := testObj()
+	indexer := StringFieldIndex{"Foo", false, nil}
+
+	ok, val, err := indexer.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "Testing\x00" {
+		t.Fatalf("bad: %s", val)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+
+	lower := StringFieldIndex{"Foo", true, nil}
+	ok, val, err = lower.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "testing\x00" {
+		t.Fatalf("bad: %s", val)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+
+	badField := StringFieldIndex{"NA", true, nil}
+	ok, val, err = badField.FromObject(obj)
+	if err == nil {
+		t.Fatalf("should get error")
+	}
+
+	emptyField := StringFieldIndex{"Empty", true, nil}
 	ok, val, err = emptyField.FromObject(obj)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -72,7 +162,7 @@ func TestStringFieldIndex_FromObject(t *testing.T) {
 }
 
 func TestStringFieldIndex_FromArgs(t *testing.T) {
-	indexer := StringFieldIndex{"Foo", false}
+	indexer := StringFieldIndex{"Foo", false, nil}
 	_, err := indexer.FromArgs()
 	if err == nil {
 		t.Fatalf("should get err")
@@ -91,7 +181,7 @@ func TestStringFieldIndex_FromArgs(t *testing.T) {
 		t.Fatalf("foo")
 	}
 
-	lower := StringFieldIndex{"Foo", true}
+	lower := StringFieldIndex{"Foo", true, nil}
 	val, err = lower.FromArgs("Foo")
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -102,7 +192,7 @@ func TestStringFieldIndex_FromArgs(t *testing.T) {
 }
 
 func TestStringFieldIndex_PrefixFromArgs(t *testing.T) {
-	indexer := StringFieldIndex{"Foo", false}
+	indexer := StringFieldIndex{"Foo", false, nil}
 	_, err := indexer.FromArgs()
 	if err == nil {
 		t.Fatalf("should get err")
@@ -121,7 +211,7 @@ func TestStringFieldIndex_PrefixFromArgs(t *testing.T) {
 		t.Fatalf("foo")
 	}
 
-	lower := StringFieldIndex{"Foo", true}
+	lower := StringFieldIndex{"Foo", true, nil}
 	val, err = lower.PrefixFromArgs("Foo")
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -496,9 +586,9 @@ func TestCompoundIndex_FromObject(t *testing.T) {
 	obj := testObj()
 	indexer := &CompoundIndex{
 		Indexes: []Indexer{
-			&StringFieldIndex{"ID", false},
-			&StringFieldIndex{"Foo", false},
-			&StringFieldIndex{"Baz", false},
+			&StringFieldIndex{"ID", false, nil},
+			&StringFieldIndex{"Foo", false, nil},
+			&StringFieldIndex{"Baz", false, nil},
 		},
 		AllowMissing: false,
 	}
@@ -516,9 +606,9 @@ func TestCompoundIndex_FromObject(t *testing.T) {
 
 	missing := &CompoundIndex{
 		Indexes: []Indexer{
-			&StringFieldIndex{"ID", false},
-			&StringFieldIndex{"Foo", true},
-			&StringFieldIndex{"Empty", false},
+			&StringFieldIndex{"ID", false, nil},
+			&StringFieldIndex{"Foo", true, nil},
+			&StringFieldIndex{"Empty", false, nil},
 		},
 		AllowMissing: true,
 	}
@@ -547,9 +637,9 @@ func TestCompoundIndex_FromObject(t *testing.T) {
 func TestCompoundIndex_FromArgs(t *testing.T) {
 	indexer := &CompoundIndex{
 		Indexes: []Indexer{
-			&StringFieldIndex{"ID", false},
-			&StringFieldIndex{"Foo", false},
-			&StringFieldIndex{"Baz", false},
+			&StringFieldIndex{"ID", false, nil},
+			&StringFieldIndex{"Foo", false, nil},
+			&StringFieldIndex{"Baz", false, nil},
 		},
 		AllowMissing: false,
 	}
@@ -576,8 +666,8 @@ func TestCompoundIndex_PrefixFromArgs(t *testing.T) {
 	indexer := &CompoundIndex{
 		Indexes: []Indexer{
 			&UUIDFieldIndex{"ID"},
-			&StringFieldIndex{"Foo", false},
-			&StringFieldIndex{"Baz", false},
+			&StringFieldIndex{"Foo", false, nil},
+			&StringFieldIndex{"Baz", false, nil},
 		},
 		AllowMissing: false,
 	}
