@@ -10,6 +10,7 @@ import (
 const (
 	id = "id"
 )
+
 // tableIndex is a tuple of (Table, Index) used for lookups
 type tableIndex struct {
 	Table string
@@ -113,7 +114,10 @@ func (txn *Txn) Commit() {
 	}
 
 	// Update the root of the DB
-	txn.db.root = txn.rootTxn.Commit()
+	newroot := txn.rootTxn.Commit()
+	txn.db.rootLock.Lock()
+	txn.db.root = newroot
+	txn.db.rootLock.Unlock()
 
 	// Clear the txn
 	txn.rootTxn = nil
@@ -281,7 +285,7 @@ func (txn *Txn) DeleteAll(table, index string, args ...interface{}) (int, error)
 
 	// Do the deletes
 	num := 0
-	for _, obj := range(objs) {
+	for _, obj := range objs {
 		if err := txn.Delete(table, obj); err != nil {
 			return num, err
 		}

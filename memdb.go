@@ -11,8 +11,9 @@ import (
 // on values. The database makes use of immutable radix trees to provide
 // transactions and MVCC.
 type MemDB struct {
-	schema *DBSchema
-	root   *iradix.Tree
+	schema   *DBSchema
+	root     *iradix.Tree
+	rootLock sync.RWMutex
 
 	// There can only be a single writter at once
 	writer sync.Mutex
@@ -42,10 +43,13 @@ func (db *MemDB) Txn(write bool) *Txn {
 	if write {
 		db.writer.Lock()
 	}
+	db.rootLock.RLock()
+	root := db.root
+	db.rootLock.RUnlock()
 	txn := &Txn{
 		db:      db,
 		write:   write,
-		rootTxn: db.root.Txn(),
+		rootTxn: root.Txn(),
 	}
 	return txn
 }
@@ -54,10 +58,12 @@ func (db *MemDB) Txn(write bool) *Txn {
 // of the database that will not be affected by any write
 // operations to the existing DB.
 func (db *MemDB) Snapshot() *MemDB {
+	db.rootLock.RLock()
 	clone := &MemDB{
 		schema: db.schema,
 		root:   db.root,
 	}
+	db.rootLock.RUnlock()
 	return clone
 }
 
