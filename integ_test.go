@@ -13,14 +13,17 @@ func TestTxn_Isolation(t *testing.T) {
 	obj := &TestObject{
 		ID:  "my-object",
 		Foo: "abc",
+		Qux: []string{"abc1", "abc2"},
 	}
 	obj2 := &TestObject{
 		ID:  "my-cool-thing",
 		Foo: "xyz",
+		Qux: []string{"xyz1", "xyz2"},
 	}
 	obj3 := &TestObject{
 		ID:  "my-other-cool-thing",
 		Foo: "xyz",
+		Qux: []string{"xyz1", "xyz2"},
 	}
 
 	err := txn1.Insert("main", obj)
@@ -90,14 +93,17 @@ func TestTxn_Abort(t *testing.T) {
 	obj := &TestObject{
 		ID:  "my-object",
 		Foo: "abc",
+		Qux: []string{"abc1", "abc2"},
 	}
 	obj2 := &TestObject{
 		ID:  "my-cool-thing",
 		Foo: "xyz",
+		Qux: []string{"xyz1", "xyz2"},
 	}
 	obj3 := &TestObject{
 		ID:  "my-other-cool-thing",
 		Foo: "xyz",
+		Qux: []string{"xyz1", "xyz2"},
 	}
 
 	err := txn1.Insert("main", obj)

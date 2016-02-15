@@ -8,12 +8,14 @@ import (
 )
 
 type TestObject struct {
-	ID    string
-	Foo   string
-	Bar   int
-	Baz   string
-	Bam   *bool
-	Empty string
+	ID       string
+	Foo      string
+	Bar      int
+	Baz      string
+	Bam      *bool
+	Empty    string
+	Qux      []string
+	QuxEmpty []string
 }
 
 func testObj() *TestObject {
@@ -24,6 +26,7 @@ func testObj() *TestObject {
 		Bar: 42,
 		Baz: "yep",
 		Bam: &b,
+		Qux: []string{"Test", "Test2"},
 	}
 	return obj
 }
@@ -122,6 +125,121 @@ func TestStringFieldIndex_PrefixFromArgs(t *testing.T) {
 	}
 
 	lower := StringFieldIndex{"Foo", true}
+	val, err = lower.PrefixFromArgs("Foo")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "foo" {
+		t.Fatalf("foo")
+	}
+}
+
+func TestStringSliceFieldIndex_FromObject(t *testing.T) {
+	obj := testObj()
+
+	indexer := StringSliceFieldIndex{"Qux", false}
+	ok, vals, err := indexer.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(vals) != 2 {
+		t.Fatal("bad result length")
+	}
+	if string(vals[0]) != "Test\x00" {
+		t.Fatalf("bad: %s", vals[0])
+	}
+	if string(vals[1]) != "Test2\x00" {
+		t.Fatalf("bad: %s", vals[1])
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+
+	lower := StringSliceFieldIndex{"Qux", true}
+	ok, vals, err = lower.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(vals) != 2 {
+		t.Fatal("bad result length")
+	}
+	if string(vals[0]) != "test\x00" {
+		t.Fatalf("bad: %s", vals[0])
+	}
+	if string(vals[1]) != "test2\x00" {
+		t.Fatalf("bad: %s", vals[1])
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+
+	badField := StringSliceFieldIndex{"NA", true}
+	ok, vals, err = badField.FromObject(obj)
+	if err == nil {
+		t.Fatalf("should get error")
+	}
+
+	emptyField := StringSliceFieldIndex{"QuxEmpty", true}
+	ok, vals, err = emptyField.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if ok {
+		t.Fatalf("should not ok")
+	}
+}
+
+func TestStringSliceFieldIndex_FromArgs(t *testing.T) {
+	indexer := StringSliceFieldIndex{"Qux", false}
+	_, err := indexer.FromArgs()
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	_, err = indexer.FromArgs(42)
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	val, err := indexer.FromArgs("foo")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "foo\x00" {
+		t.Fatalf("foo")
+	}
+
+	lower := StringSliceFieldIndex{"Qux", true}
+	val, err = lower.FromArgs("Foo")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "foo\x00" {
+		t.Fatalf("foo")
+	}
+}
+
+func TestStringSliceFieldIndex_PrefixFromArgs(t *testing.T) {
+	indexer := StringSliceFieldIndex{"Qux", false}
+	_, err := indexer.FromArgs()
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	_, err = indexer.PrefixFromArgs(42)
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	val, err := indexer.PrefixFromArgs("foo")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "foo" {
+		t.Fatalf("foo")
+	}
+
+	lower := StringSliceFieldIndex{"Qux", true}
 	val, err = lower.PrefixFromArgs("Foo")
 	if err != nil {
 		t.Fatalf("err: %v", err)
