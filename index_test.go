@@ -597,7 +597,23 @@ func TestCompoundIndex_PrefixFromArgs(t *testing.T) {
 	if !bytes.Equal(val[:16], uuidBuf) {
 		t.Fatalf("bad prefix")
 	}
-	if string(val[16:]) != "foo\x00" {
+	if string(val[16:]) != "foo" {
 		t.Fatalf("bad: %s", val)
+	}
+
+	val, err = indexer.PrefixFromArgs(uuid, "foo", "ba")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !bytes.Equal(val[:16], uuidBuf) {
+		t.Fatalf("bad prefix")
+	}
+	if string(val[16:]) != "foo\x00ba" {
+		t.Fatalf("bad: %s", val)
+	}
+
+	_, err = indexer.PrefixFromArgs(uuid, "foo", "bar", "nope")
+	if err == nil {
+		t.Fatalf("expected an error when passing too many arguments")
 	}
 }
