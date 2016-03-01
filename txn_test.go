@@ -705,7 +705,7 @@ func TestTxn_InsertGet_LongestPrefix(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 		if raw != obj1 {
-			t.Fatalf("should be nil")
+			t.Fatalf("bad: %#v", raw)
 		}
 
 		raw, err = txn.LongestPrefix("main", "foo_prefix", "foozipza")
@@ -713,7 +713,7 @@ func TestTxn_InsertGet_LongestPrefix(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 		if raw != obj1 {
-			t.Fatalf("should be nil")
+			t.Fatalf("bad: %#v", raw)
 		}
 
 		raw, err = txn.LongestPrefix("main", "foo_prefix", "foozipzap")
