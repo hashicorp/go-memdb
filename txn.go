@@ -344,7 +344,7 @@ func (txn *Txn) First(table, index string, args ...interface{}) (interface{}, er
 func (txn *Txn) LongestPrefix(table, index string, args ...interface{}) (interface{}, error) {
 	// Enforce that this only works on prefix indexes.
 	if !strings.HasSuffix(index, "_prefix") {
-		return nil, fmt.Errorf("index '%s' does not support prefix lookups", index)
+		return nil, fmt.Errorf("must use '%s_prefix' on index", index)
 	}
 
 	// Get the index value.

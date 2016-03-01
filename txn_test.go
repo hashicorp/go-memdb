@@ -761,11 +761,11 @@ func TestTxn_InsertGet_LongestPrefix(t *testing.T) {
 
 	// Try some disallowed index types.
 	_, err = txn.LongestPrefix("main", "foo", "")
-	if err == nil || !strings.Contains(err.Error(), "does not support prefix lookups") {
+	if err == nil || !strings.Contains(err.Error(), "must use 'foo_prefix' on index") {
 		t.Fatalf("bad: %v", err)
 	}
 	_, err = txn.LongestPrefix("main", "nope_prefix", "")
-	if err == nil || !strings.Contains(err.Error(), "is not unique") {
+	if err == nil || !strings.Contains(err.Error(), "index 'nope_prefix' is not unique") {
 		t.Fatalf("bad: %v", err)
 	}
 }
