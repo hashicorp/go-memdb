@@ -68,6 +68,7 @@ func TestTxn_InsertUpdate_First(t *testing.T) {
 	obj := &TestObject{
 		ID:  "my-object",
 		Foo: "abc",
+		Qux: []string{"abc1", "abc2"},
 	}
 	err := txn.Insert("main", obj)
 	if err != nil {
@@ -87,6 +88,7 @@ func TestTxn_InsertUpdate_First(t *testing.T) {
 	obj2 := &TestObject{
 		ID:  "my-object",
 		Foo: "xyz",
+		Qux: []string{"xyz1", "xyz2"},
 	}
 	err = txn.Insert("main", obj2)
 	if err != nil {
@@ -110,6 +112,7 @@ func TestTxn_InsertUpdate_First_NonUnique(t *testing.T) {
 	obj := &TestObject{
 		ID:  "my-object",
 		Foo: "abc",
+		Qux: []string{"abc1", "abc2"},
 	}
 	err := txn.Insert("main", obj)
 	if err != nil {
@@ -129,6 +132,7 @@ func TestTxn_InsertUpdate_First_NonUnique(t *testing.T) {
 	obj2 := &TestObject{
 		ID:  "my-object",
 		Foo: "xyz",
+		Qux: []string{"xyz1", "xyz2"},
 	}
 	err = txn.Insert("main", obj2)
 	if err != nil {
@@ -155,6 +159,87 @@ func TestTxn_InsertUpdate_First_NonUnique(t *testing.T) {
 	}
 }
 
+func TestTxn_InsertUpdate_First_MultiIndex(t *testing.T) {
+	db := testDB(t)
+	txn := db.Txn(true)
+
+	obj := &TestObject{
+		ID:  "my-object",
+		Foo: "abc",
+		Qux: []string{"abc1", "abc2"},
+	}
+	err := txn.Insert("main", obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	raw, err := txn.First("main", "qux", obj.Qux[0])
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if raw != obj {
+		t.Fatalf("bad: %#v %#v", raw, obj)
+	}
+
+	raw, err = txn.First("main", "qux", obj.Qux[1])
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if raw != obj {
+		t.Fatalf("bad: %#v %#v", raw, obj)
+	}
+
+	// Update the object
+	obj2 := &TestObject{
+		ID:  "my-object",
+		Foo: "xyz",
+		Qux: []string{"xyz1", "xyz2"},
+	}
+	err = txn.Insert("main", obj2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	raw, err = txn.First("main", "qux", obj2.Qux[0])
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if raw != obj2 {
+		t.Fatalf("bad: %#v %#v", raw, obj2)
+	}
+
+	raw, err = txn.First("main", "qux", obj2.Qux[1])
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if raw != obj2 {
+		t.Fatalf("bad: %#v %#v", raw, obj2)
+	}
+
+	// Lookup of the old value should fail
+	raw, err = txn.First("main", "qux", obj.Qux[0])
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if raw != nil {
+		t.Fatalf("bad: %#v", raw)
+	}
+
+	raw, err = txn.First("main", "qux", obj.Qux[1])
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if raw != nil {
+		t.Fatalf("bad: %#v", raw)
+	}
+}
+
 func TestTxn_First_NonUnique_Multiple(t *testing.T) {
 	db := testDB(t)
 	txn := db.Txn(true)
@@ -162,14 +247,17 @@ func TestTxn_First_NonUnique_Multiple(t *testing.T) {
 	obj := &TestObject{
 		ID:  "my-object",
 		Foo: "abc",
+		Qux: []string{"abc1", "abc2"},
 	}
 	obj2 := &TestObject{
 		ID:  "my-cool-thing",
 		Foo: "xyz",
+		Qux: []string{"xyz1", "xyz2"},
 	}
 	obj3 := &TestObject{
 		ID:  "my-other-cool-thing",
 		Foo: "xyz",
+		Qux: []string{"xyz1", "xyz2"},
 	}
 
 	err := txn.Insert("main", obj)
@@ -205,6 +293,59 @@ func TestTxn_First_NonUnique_Multiple(t *testing.T) {
 	}
 }
 
+func TestTxn_First_MultiIndex_Multiple(t *testing.T) {
+	db := testDB(t)
+	txn := db.Txn(true)
+
+	obj := &TestObject{
+		ID:  "my-object",
+		Foo: "abc",
+		Qux: []string{"abc1", "abc2"},
+	}
+	obj2 := &TestObject{
+		ID:  "my-cool-thing",
+		Foo: "xyz",
+		Qux: []string{"xyz1", "xyz2"},
+	}
+	obj3 := &TestObject{
+		ID:  "my-other-cool-thing",
+		Foo: "xyz",
+		Qux: []string{"xyz1", "xyz2"},
+	}
+
+	err := txn.Insert("main", obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	err = txn.Insert("main", obj2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	err = txn.Insert("main", obj3)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// The first object has a unique secondary value
+	raw, err := txn.First("main", "qux", obj.Qux[0])
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if raw != obj {
+		t.Fatalf("bad: %#v %#v", raw, obj)
+	}
+
+	// Second and third object share secondary value,
+	// but the primary ID of obj2 should be first
+	raw, err = txn.First("main", "qux", obj2.Qux[0])
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if raw != obj2 {
+		t.Fatalf("bad: %#v %#v", raw, obj2)
+	}
+}
+
 func TestTxn_InsertDelete_Simple(t *testing.T) {
 	db := testDB(t)
 	txn := db.Txn(true)
@@ -212,10 +353,12 @@ func TestTxn_InsertDelete_Simple(t *testing.T) {
 	obj1 := &TestObject{
 		ID:  "my-cool-thing",
 		Foo: "xyz",
+		Qux: []string{"xyz1", "xyz2"},
 	}
 	obj2 := &TestObject{
 		ID:  "my-other-cool-thing",
 		Foo: "xyz",
+		Qux: []string{"xyz1", "xyz2"},
 	}
 
 	err := txn.Insert("main", obj1)
@@ -287,10 +430,12 @@ func TestTxn_InsertGet_Simple(t *testing.T) {
 	obj1 := &TestObject{
 		ID:  "my-cool-thing",
 		Foo: "xyz",
+		Qux: []string{"xyz1"},
 	}
 	obj2 := &TestObject{
 		ID:  "my-other-cool-thing",
 		Foo: "xyz",
+		Qux: []string{"xyz1", "xyz2"},
 	}
 
 	err := txn.Insert("main", obj1)
@@ -352,6 +497,37 @@ func TestTxn_InsertGet_Simple(t *testing.T) {
 		if raw := result.Next(); raw != nil {
 			t.Fatalf("bad: %#v %#v", raw, nil)
 		}
+
+		// Attempt a row scan multi index
+		result, err = txn.Get("main", "qux", obj1.Qux[0])
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		if raw := result.Next(); raw != obj1 {
+			t.Fatalf("bad: %#v %#v", raw, obj1)
+		}
+
+		if raw := result.Next(); raw != obj2 {
+			t.Fatalf("bad: %#v %#v", raw, obj2)
+		}
+
+		if raw := result.Next(); raw != nil {
+			t.Fatalf("bad: %#v %#v", raw, nil)
+		}
+
+		result, err = txn.Get("main", "qux", obj2.Qux[1])
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		if raw := result.Next(); raw != obj2 {
+			t.Fatalf("bad: %#v %#v", raw, obj2)
+		}
+
+		if raw := result.Next(); raw != nil {
+			t.Fatalf("bad: %#v %#v", raw, nil)
+		}
 	}
 
 	// Check the results within the txn
@@ -372,14 +548,17 @@ func TestTxn_DeleteAll_Simple(t *testing.T) {
 	obj1 := &TestObject{
 		ID:  "my-object",
 		Foo: "abc",
+		Qux: []string{"abc1", "abc1"},
 	}
 	obj2 := &TestObject{
 		ID:  "my-cool-thing",
 		Foo: "xyz",
+		Qux: []string{"xyz1", "xyz2"},
 	}
 	obj3 := &TestObject{
 		ID:  "my-other-cool-thing",
 		Foo: "xyz",
+		Qux: []string{"xyz1", "xyz2"},
 	}
 
 	err := txn.Insert("main", obj1)
@@ -439,6 +618,38 @@ func TestTxn_DeleteAll_Simple(t *testing.T) {
 	if raw != nil {
 		t.Fatalf("bad: %#v", raw)
 	}
+
+	// Insert some more
+	err = txn.Insert("main", obj1)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	err = txn.Insert("main", obj2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	err = txn.Insert("main", obj3)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Delete an entire multiindex range
+	num, err = txn.DeleteAll("main", "qux", obj2.Qux[0])
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if num != 2 {
+		t.Fatalf("Bad: %d", num)
+	}
+
+	// Ensure we cannot lookup
+	raw, err = txn.First("main", "qux", obj2.Qux[0])
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if raw != nil {
+		t.Fatalf("bad: %#v", raw)
+	}
 }
 
 func TestTxn_DeleteAll_Prefix(t *testing.T) {
@@ -448,14 +659,17 @@ func TestTxn_DeleteAll_Prefix(t *testing.T) {
 	obj1 := &TestObject{
 		ID:  "my-object",
 		Foo: "abc",
+		Qux: []string{"abc1", "abc1"},
 	}
 	obj2 := &TestObject{
 		ID:  "my-cool-thing",
 		Foo: "xyz",
+		Qux: []string{"xyz1", "xyz2"},
 	}
 	obj3 := &TestObject{
 		ID:  "my-other-cool-thing",
 		Foo: "xyz",
+		Qux: []string{"xyz1", "xyz2"},
 	}
 
 	err := txn.Insert("main", obj1)
@@ -497,10 +711,12 @@ func TestTxn_InsertGet_Prefix(t *testing.T) {
 	obj1 := &TestObject{
 		ID:  "my-cool-thing",
 		Foo: "foobarbaz",
+		Qux: []string{"foobarbaz", "fooqux"},
 	}
 	obj2 := &TestObject{
 		ID:  "my-other-cool-thing",
 		Foo: "foozipzap",
+		Qux: []string{"foozipzap"},
 	}
 
 	err := txn.Insert("main", obj1)
@@ -565,6 +781,43 @@ func TestTxn_InsertGet_Prefix(t *testing.T) {
 
 		// Attempt a row scan secondary index, tigher prefix
 		result, err = txn.Get("main", "foo_prefix", "foob")
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		if raw := result.Next(); raw != obj1 {
+			t.Fatalf("bad: %#v %#v", raw, obj1)
+		}
+
+		if raw := result.Next(); raw != nil {
+			t.Fatalf("bad: %#v %#v", raw, nil)
+		}
+
+		// Attempt a row scan multiindex
+		result, err = txn.Get("main", "qux_prefix", "foo")
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		if raw := result.Next(); raw != obj1 {
+			t.Fatalf("bad: %#v %#v", raw, obj1)
+		}
+
+		// second index entry for obj1 (fooqux)
+		if raw := result.Next(); raw != obj1 {
+			t.Fatalf("bad: %#v %#v", raw, obj1)
+		}
+
+		if raw := result.Next(); raw != obj2 {
+			t.Fatalf("bad: %#v %#v", raw, obj2)
+		}
+
+		if raw := result.Next(); raw != nil {
+			t.Fatalf("bad: %#v %#v", raw, nil)
+		}
+
+		// Attempt a row scan multiindex, tigher prefix
+		result, err = txn.Get("main", "qux_prefix", "foob")
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
