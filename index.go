@@ -173,6 +173,78 @@ func (s *StringSliceFieldIndex) PrefixFromArgs(args ...interface{}) ([]byte, err
 	return val, nil
 }
 
+// StringMapFieldIndex is used to extract a field of type map[string]string
+// from an object using reflection and builds an index on that field.
+type StringMapFieldIndex struct {
+	Field     string
+	Lowercase bool
+}
+
+var MapType = reflect.MapOf(reflect.TypeOf(""), reflect.TypeOf("")).Kind()
+
+func (s *StringMapFieldIndex) FromObject(obj interface{}) (bool, [][]byte, error) {
+	v := reflect.ValueOf(obj)
+	v = reflect.Indirect(v) // Dereference the pointer if any
+
+	fv := v.FieldByName(s.Field)
+	if !fv.IsValid() {
+		return false, nil, fmt.Errorf("field '%s' for %#v is invalid", s.Field, obj)
+	}
+
+	if fv.Kind() != MapType {
+		return false, nil, fmt.Errorf("field '%s' is not a map[string]string", s.Field)
+	}
+
+	length := fv.Len()
+	vals := make([][]byte, 0, length)
+	for _, key := range fv.MapKeys() {
+		k := key.String()
+		val := fv.MapIndex(key).String()
+		if s.Lowercase {
+			k = strings.ToLower(k)
+			val = strings.ToLower(val)
+		}
+
+		// Add the null character as a terminator
+		k += "\x00" + val + "\x00"
+
+		vals = append(vals, []byte(k))
+	}
+	if len(vals) == 0 {
+		return false, nil, nil
+	}
+	return true, vals, nil
+}
+
+func (s *StringMapFieldIndex) FromArgs(args ...interface{}) ([]byte, error) {
+	if len(args) > 2 || len(args) == 0 {
+		return nil, fmt.Errorf("must provide one or two arguments")
+	}
+	key, ok := args[0].(string)
+	if !ok {
+		return nil, fmt.Errorf("argument must be a string: %#v", args[0])
+	}
+	if s.Lowercase {
+		key = strings.ToLower(key)
+	}
+	// Add the null character as a terminator
+	key += "\x00"
+
+	if len(args) == 2 {
+		val, ok := args[1].(string)
+		if !ok {
+			return nil, fmt.Errorf("argument must be a string: %#v", args[1])
+		}
+		if s.Lowercase {
+			val = strings.ToLower(val)
+		}
+		// Add the null character as a terminator
+		key += val + "\x00"
+	}
+
+	return []byte(key), nil
+}
+
 // UUIDFieldIndex is used to extract a field from an object
 // using reflection and builds an index on that field by treating
 // it as a UUID. This is an optimization to using a StringFieldIndex

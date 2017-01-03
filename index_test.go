@@ -4,6 +4,7 @@ import (
 	"bytes"
 	crand "crypto/rand"
 	"fmt"
+	"sort"
 	"testing"
 )
 
@@ -16,6 +17,8 @@ type TestObject struct {
 	Empty    string
 	Qux      []string
 	QuxEmpty []string
+	Zod      map[string]string
+	ZodEmpty map[string]string
 }
 
 func testObj() *TestObject {
@@ -27,6 +30,10 @@ func testObj() *TestObject {
 		Baz: "yep",
 		Bam: &b,
 		Qux: []string{"Test", "Test2"},
+		Zod: map[string]string{
+			"Role":          "Server",
+			"instance_type": "m3.medium",
+		},
 	}
 	return obj
 }
@@ -246,6 +253,102 @@ func TestStringSliceFieldIndex_PrefixFromArgs(t *testing.T) {
 	}
 	if string(val) != "foo" {
 		t.Fatalf("foo")
+	}
+}
+
+func TestStringMapFieldIndex_FromObject(t *testing.T) {
+	// Helper function to put the result in a deterministic order
+	fromObjectSorted := func(index MultiIndexer, obj *TestObject) (bool, []string, error) {
+		ok, v, err := index.FromObject(obj)
+		var vals []string
+		for _, s := range v {
+			vals = append(vals, string(s))
+		}
+		sort.Strings(vals)
+		return ok, vals, err
+	}
+
+	obj := testObj()
+
+	indexer := StringMapFieldIndex{"Zod", false}
+	ok, vals, err := fromObjectSorted(&indexer, obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(vals) != 2 {
+		t.Fatal("bad result length")
+	}
+	if string(vals[0]) != "Role\x00Server\x00" {
+		t.Fatalf("bad: %s", vals[0])
+	}
+	if string(vals[1]) != "instance_type\x00m3.medium\x00" {
+		t.Fatalf("bad: %s", vals[1])
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+
+	lower := StringMapFieldIndex{"Zod", true}
+	ok, vals, err = fromObjectSorted(&lower, obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(vals) != 2 {
+		t.Fatal("bad result length")
+	}
+	if string(vals[0]) != "instance_type\x00m3.medium\x00" {
+		t.Fatalf("bad: %s", vals[0])
+	}
+	if string(vals[1]) != "role\x00server\x00" {
+		t.Fatalf("bad: %s", vals[1])
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+
+	badField := StringMapFieldIndex{"NA", true}
+	ok, _, err = badField.FromObject(obj)
+	if err == nil {
+		t.Fatalf("should get error")
+	}
+
+	emptyField := StringMapFieldIndex{"ZodEmpty", true}
+	ok, _, err = emptyField.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if ok {
+		t.Fatalf("should not ok")
+	}
+}
+
+func TestStringMapFieldIndex_FromArgs(t *testing.T) {
+	indexer := StringMapFieldIndex{"Zod", false}
+	_, err := indexer.FromArgs()
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	_, err = indexer.FromArgs(42)
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	val, err := indexer.FromArgs("Role", "Server")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "Role\x00Server\x00" {
+		t.Fatalf("bad: %v", string(val))
+	}
+
+	lower := StringMapFieldIndex{"Zod", true}
+	val, err = lower.FromArgs("Role", "Server")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "role\x00server\x00" {
+		t.Fatalf("bad: %v", string(val))
 	}
 }
 
