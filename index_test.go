@@ -33,6 +33,7 @@ func testObj() *TestObject {
 		Zod: map[string]string{
 			"Role":          "Server",
 			"instance_type": "m3.medium",
+			"":              "asdf",
 		},
 	}
 	return obj

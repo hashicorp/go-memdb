@@ -199,7 +199,11 @@ func (s *StringMapFieldIndex) FromObject(obj interface{}) (bool, [][]byte, error
 	vals := make([][]byte, 0, length)
 	for _, key := range fv.MapKeys() {
 		k := key.String()
+		if k == "" {
+			continue
+		}
 		val := fv.MapIndex(key).String()
+
 		if s.Lowercase {
 			k = strings.ToLower(k)
 			val = strings.ToLower(val)
