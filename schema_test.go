@@ -17,6 +17,10 @@ func testValidSchema() *DBSchema {
 						Name:    "foo",
 						Indexer: &StringFieldIndex{Field: "Foo"},
 					},
+					"qux": &IndexSchema{
+						Name:    "qux",
+						Indexer: &StringSliceFieldIndex{Field: "Qux"},
+					},
 				},
 			},
 		},
@@ -90,6 +94,12 @@ func TestIndexSchema_Validate(t *testing.T) {
 	}
 
 	s.Indexer = &StringFieldIndex{Field: "Foo", Lowercase: false}
+	err = s.Validate()
+	if err != nil {
+		t.Fatalf("should validate: %v", err)
+	}
+
+	s.Indexer = &StringSliceFieldIndex{Field: "Qux", Lowercase: false}
 	err = s.Validate()
 	if err != nil {
 		t.Fatalf("should validate: %v", err)

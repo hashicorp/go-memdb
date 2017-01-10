@@ -1,6 +1,9 @@
 package memdb
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 // Test that multiple concurrent transactions are isolated from each other
 func TestTxn_Isolation(t *testing.T) {
@@ -10,14 +13,17 @@ func TestTxn_Isolation(t *testing.T) {
 	obj := &TestObject{
 		ID:  "my-object",
 		Foo: "abc",
+		Qux: []string{"abc1", "abc2"},
 	}
 	obj2 := &TestObject{
 		ID:  "my-cool-thing",
 		Foo: "xyz",
+		Qux: []string{"xyz1", "xyz2"},
 	}
 	obj3 := &TestObject{
 		ID:  "my-other-cool-thing",
 		Foo: "xyz",
+		Qux: []string{"xyz1", "xyz2"},
 	}
 
 	err := txn1.Insert("main", obj)
@@ -87,14 +93,17 @@ func TestTxn_Abort(t *testing.T) {
 	obj := &TestObject{
 		ID:  "my-object",
 		Foo: "abc",
+		Qux: []string{"abc1", "abc2"},
 	}
 	obj2 := &TestObject{
 		ID:  "my-cool-thing",
 		Foo: "xyz",
+		Qux: []string{"xyz1", "xyz2"},
 	}
 	obj3 := &TestObject{
 		ID:  "my-other-cool-thing",
 		Foo: "xyz",
+		Qux: []string{"xyz1", "xyz2"},
 	}
 
 	err := txn1.Insert("main", obj)
@@ -146,6 +155,42 @@ func TestComplexDB(t *testing.T) {
 		t.Fatalf("should get person")
 	}
 
+	raw, err = txn.First("people", "id_prefix", raw.(*TestPerson).ID[:4])
+	noErr(t, err)
+	if raw == nil {
+		t.Fatalf("should get person")
+	}
+
+	// Get based on field set.
+	result, err := txn.Get("people", "sibling", true)
+	noErr(t, err)
+	if raw == nil {
+		t.Fatalf("should get person")
+	}
+
+	exp := map[string]bool{"Alex": true, "Armon": true}
+	act := make(map[string]bool, 2)
+	for i := result.Next(); i != nil; i = result.Next() {
+		p, ok := i.(*TestPerson)
+		if !ok {
+			t.Fatalf("should get person")
+		}
+		act[p.First] = true
+	}
+
+	if !reflect.DeepEqual(act, exp) {
+		t.Fatalf("Got %#v; want %#v", act, exp)
+	}
+
+	raw, err = txn.First("people", "sibling", false)
+	noErr(t, err)
+	if raw == nil {
+		t.Fatalf("should get person")
+	}
+	if raw.(*TestPerson).First != "Mitchell" {
+		t.Fatalf("wrong person!")
+	}
+
 	// Where in the world is mitchell hashimoto?
 	raw, err = txn.First("people", "name_prefix", "Mitchell")
 	noErr(t, err)
@@ -184,9 +229,17 @@ func testPopulateData(t *testing.T, db *MemDB) {
 
 	// Create some data
 	person1 := testPerson()
+
 	person2 := testPerson()
 	person2.First = "Mitchell"
 	person2.Last = "Hashimoto"
+
+	person3 := testPerson()
+	person3.First = "Alex"
+	person3.Last = "Dadgar"
+
+	person1.Sibling = person3
+	person3.Sibling = person1
 
 	place1 := testPlace()
 	place2 := testPlace()
@@ -198,6 +251,7 @@ func testPopulateData(t *testing.T, db *MemDB) {
 	// Insert it all
 	noErr(t, txn.Insert("people", person1))
 	noErr(t, txn.Insert("people", person2))
+	noErr(t, txn.Insert("people", person3))
 	noErr(t, txn.Insert("places", place1))
 	noErr(t, txn.Insert("places", place2))
 	noErr(t, txn.Insert("visits", visit1))
@@ -214,9 +268,10 @@ func noErr(t *testing.T, err error) {
 }
 
 type TestPerson struct {
-	ID    string
-	First string
-	Last  string
+	ID      string
+	First   string
+	Last    string
+	Sibling *TestPerson
 }
 
 type TestPlace struct {
@@ -249,6 +304,11 @@ func testComplexSchema() *DBSchema {
 								&StringFieldIndex{Field: "Last"},
 							},
 						},
+					},
+					"sibling": &IndexSchema{
+						Name:    "sibling",
+						Unique:  false,
+						Indexer: &FieldSetIndex{Field: "Sibling"},
 					},
 				},
 			},
