@@ -520,7 +520,7 @@ func (txn *Txn) Defer(fn func()) {
 }
 
 // radixIterator is used to wrap an underlying iradix iterator.
-// This is much mroe efficient than a sliceIterator as we are not
+// This is much more efficient than a sliceIterator as we are not
 // materializing the entire view.
 type radixIterator struct {
 	iter    *iradix.Iterator
