@@ -15,6 +15,7 @@ func (w WatchSet) Add(watchCh <-chan struct{}) {
 	if w == nil {
 		return
 	}
+
 	if _, ok := w[watchCh]; !ok {
 		w[watchCh] = struct{}{}
 	}
@@ -23,6 +24,10 @@ func (w WatchSet) Add(watchCh <-chan struct{}) {
 // Watch is used to wait for either the watch set to trigger or a timeout
 // Returns true on timeout
 func (w WatchSet) Watch(timeoutCh <-chan time.Time) bool {
+	if w == nil {
+		return false
+	}
+
 	if n := len(w); n <= 8 {
 		return w.watchFew(timeoutCh)
 	} else {
