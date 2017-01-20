@@ -229,10 +229,19 @@ func TestWatchUpdate(t *testing.T) {
 	testPopulateData(t, db)
 	txn := db.Txn(false) // read only
 
+	watchSetIter := NewWatchSet()
 	watchSetSpecific := NewWatchSet()
 	watchSetPrefix := NewWatchSet()
 
-	// Get using a full name
+	// Get using an iterator.
+	iter, err := txn.Get("people", "name", "Armon", "Dadgar")
+	noErr(t, err)
+	watchSetIter.Add(iter.WatchCh())
+	if raw := iter.Next(); raw == nil {
+		t.Fatalf("should get person")
+	}
+
+	// Get using a full name.
 	watch, raw, err := txn.FirstWatch("people", "name", "Armon", "Dadgar")
 	noErr(t, err)
 	if raw == nil {
@@ -240,7 +249,7 @@ func TestWatchUpdate(t *testing.T) {
 	}
 	watchSetSpecific.Add(watch)
 
-	// Get using a prefix
+	// Get using a prefix.
 	watch, raw, err = txn.FirstWatch("people", "name_prefix", "Armon")
 	noErr(t, err)
 	if raw == nil {
@@ -248,16 +257,39 @@ func TestWatchUpdate(t *testing.T) {
 	}
 	watchSetPrefix.Add(watch)
 
-	txn2 := db.Txn(true) // write
+	// Write to a snapshot.
+	snap := db.Snapshot()
+	txn2 := snap.Txn(true) // write
 	noErr(t, txn2.Delete("people", raw))
 	txn2.Commit()
 
-	// Both watches should trigger!
-	timeout := time.After(time.Second)
-	if timeout := watchSetSpecific.Watch(timeout); timeout {
+	// None of the watches should trigger since we didn't alter the
+	// primary.
+	wait := 100 * time.Millisecond
+	if timeout := watchSetIter.Watch(time.After(wait)); !timeout {
+		t.Fatalf("should timeout")
+	}
+	if timeout := watchSetSpecific.Watch(time.After(wait)); !timeout {
+		t.Fatalf("should timeout")
+	}
+	if timeout := watchSetPrefix.Watch(time.After(wait)); !timeout {
+		t.Fatalf("should timeout")
+	}
+
+	// Write to the primary.
+	txn3 := db.Txn(true) // write
+	noErr(t, txn3.Delete("people", raw))
+	txn3.Commit()
+
+	// All three watches should trigger!
+	wait = time.Second
+	if timeout := watchSetIter.Watch(time.After(wait)); timeout {
 		t.Fatalf("should not timeout")
 	}
-	if timeout := watchSetPrefix.Watch(timeout); timeout {
+	if timeout := watchSetSpecific.Watch(time.After(wait)); timeout {
+		t.Fatalf("should not timeout")
+	}
+	if timeout := watchSetPrefix.Watch(time.After(wait)); timeout {
 		t.Fatalf("should not timeout")
 	}
 }
