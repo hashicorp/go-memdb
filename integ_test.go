@@ -3,6 +3,7 @@ package memdb
 import (
 	"reflect"
 	"testing"
+	"time"
 )
 
 // Test that multiple concurrent transactions are isolated from each other
@@ -220,6 +221,76 @@ func TestComplexDB(t *testing.T) {
 	place := raw.(*TestPlace)
 	if place.Name != "Maui" {
 		t.Fatalf("bad place (but isn't anywhere else really?): %v", place)
+	}
+}
+
+func TestWatchUpdate(t *testing.T) {
+	db := testComplexDB(t)
+	testPopulateData(t, db)
+	txn := db.Txn(false) // read only
+
+	watchSetIter := NewWatchSet()
+	watchSetSpecific := NewWatchSet()
+	watchSetPrefix := NewWatchSet()
+
+	// Get using an iterator.
+	iter, err := txn.Get("people", "name", "Armon", "Dadgar")
+	noErr(t, err)
+	watchSetIter.Add(iter.WatchCh())
+	if raw := iter.Next(); raw == nil {
+		t.Fatalf("should get person")
+	}
+
+	// Get using a full name.
+	watch, raw, err := txn.FirstWatch("people", "name", "Armon", "Dadgar")
+	noErr(t, err)
+	if raw == nil {
+		t.Fatalf("should get person")
+	}
+	watchSetSpecific.Add(watch)
+
+	// Get using a prefix.
+	watch, raw, err = txn.FirstWatch("people", "name_prefix", "Armon")
+	noErr(t, err)
+	if raw == nil {
+		t.Fatalf("should get person")
+	}
+	watchSetPrefix.Add(watch)
+
+	// Write to a snapshot.
+	snap := db.Snapshot()
+	txn2 := snap.Txn(true) // write
+	noErr(t, txn2.Delete("people", raw))
+	txn2.Commit()
+
+	// None of the watches should trigger since we didn't alter the
+	// primary.
+	wait := 100 * time.Millisecond
+	if timeout := watchSetIter.Watch(time.After(wait)); !timeout {
+		t.Fatalf("should timeout")
+	}
+	if timeout := watchSetSpecific.Watch(time.After(wait)); !timeout {
+		t.Fatalf("should timeout")
+	}
+	if timeout := watchSetPrefix.Watch(time.After(wait)); !timeout {
+		t.Fatalf("should timeout")
+	}
+
+	// Write to the primary.
+	txn3 := db.Txn(true) // write
+	noErr(t, txn3.Delete("people", raw))
+	txn3.Commit()
+
+	// All three watches should trigger!
+	wait = time.Second
+	if timeout := watchSetIter.Watch(time.After(wait)); timeout {
+		t.Fatalf("should not timeout")
+	}
+	if timeout := watchSetSpecific.Watch(time.After(wait)); timeout {
+		t.Fatalf("should not timeout")
+	}
+	if timeout := watchSetPrefix.Watch(time.After(wait)); timeout {
+		t.Fatalf("should not timeout")
 	}
 }
 
