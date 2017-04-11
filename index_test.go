@@ -3,8 +3,10 @@ package memdb
 import (
 	"bytes"
 	crand "crypto/rand"
+	"encoding/binary"
 	"fmt"
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -19,6 +21,11 @@ type TestObject struct {
 	QuxEmpty []string
 	Zod      map[string]string
 	ZodEmpty map[string]string
+	Uint     uint
+	Uint8    uint8
+	Uint16   uint16
+	Uint32   uint32
+	Uint64   uint64
 }
 
 func testObj() *TestObject {
@@ -35,6 +42,11 @@ func testObj() *TestObject {
 			"instance_type": "m3.medium",
 			"":              "asdf",
 		},
+		Uint:   uint(1),
+		Uint8:  uint8(8),
+		Uint16: uint16(16),
+		Uint32: uint32(32),
+		Uint64: uint64(64),
 	}
 	return obj
 }
@@ -544,6 +556,154 @@ func generateUUID() ([]byte, string) {
 		buf[8:10],
 		buf[10:16])
 	return buf, uuid
+}
+
+func TestUintFieldIndex_FromObject(t *testing.T) {
+	obj := testObj()
+
+	euint := make([]byte, 8)
+	euint8 := make([]byte, 1)
+	euint16 := make([]byte, 2)
+	euint32 := make([]byte, 4)
+	euint64 := make([]byte, 8)
+	binary.PutUvarint(euint, uint64(obj.Uint))
+	binary.PutUvarint(euint8, uint64(obj.Uint8))
+	binary.PutUvarint(euint16, uint64(obj.Uint16))
+	binary.PutUvarint(euint32, uint64(obj.Uint32))
+	binary.PutUvarint(euint64, obj.Uint64)
+
+	cases := []struct {
+		Field         string
+		Expected      []byte
+		ErrorContains string
+	}{
+		{
+			Field:    "Uint",
+			Expected: euint,
+		},
+		{
+			Field:    "Uint8",
+			Expected: euint8,
+		},
+		{
+			Field:    "Uint16",
+			Expected: euint16,
+		},
+		{
+			Field:    "Uint32",
+			Expected: euint32,
+		},
+		{
+			Field:    "Uint64",
+			Expected: euint64,
+		},
+		{
+			Field:         "UintGarbage",
+			ErrorContains: "is invalid",
+		},
+		{
+			Field:         "ID",
+			ErrorContains: "want a uint",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Field, func(t *testing.T) {
+			indexer := UintFieldIndex{c.Field}
+			ok, val, err := indexer.FromObject(obj)
+
+			if err != nil {
+				if ok {
+					t.Fatalf("okay and error")
+				}
+
+				if c.ErrorContains != "" && strings.Contains(err.Error(), c.ErrorContains) {
+					return
+				} else {
+					t.Fatalf("Unexpected error %v", err)
+				}
+			}
+
+			if !ok {
+				t.Fatalf("not okay and no error")
+			}
+
+			if !bytes.Equal(val, c.Expected) {
+				t.Fatalf("bad: %#v %#v", val, c.Expected)
+			}
+
+		})
+	}
+}
+
+func TestUintFieldIndex_FromArgs(t *testing.T) {
+	indexer := UintFieldIndex{"Foo"}
+	_, err := indexer.FromArgs()
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	_, err = indexer.FromArgs(uint(1), uint(2))
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	_, err = indexer.FromArgs("foo")
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	obj := testObj()
+	euint := make([]byte, 8)
+	euint8 := make([]byte, 1)
+	euint16 := make([]byte, 2)
+	euint32 := make([]byte, 4)
+	euint64 := make([]byte, 8)
+	binary.PutUvarint(euint, uint64(obj.Uint))
+	binary.PutUvarint(euint8, uint64(obj.Uint8))
+	binary.PutUvarint(euint16, uint64(obj.Uint16))
+	binary.PutUvarint(euint32, uint64(obj.Uint32))
+	binary.PutUvarint(euint64, obj.Uint64)
+
+	val, err := indexer.FromArgs(obj.Uint)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if !bytes.Equal(val, euint) {
+		t.Fatalf("bad: %#v %#v", val, euint)
+	}
+
+	val, err = indexer.FromArgs(obj.Uint8)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if !bytes.Equal(val, euint8) {
+		t.Fatalf("bad: %#v %#v", val, euint8)
+	}
+
+	val, err = indexer.FromArgs(obj.Uint16)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if !bytes.Equal(val, euint16) {
+		t.Fatalf("bad: %#v %#v", val, euint16)
+	}
+
+	val, err = indexer.FromArgs(obj.Uint32)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if !bytes.Equal(val, euint32) {
+		t.Fatalf("bad: %#v %#v", val, euint32)
+	}
+
+	val, err = indexer.FromArgs(obj.Uint64)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if !bytes.Equal(val, euint64) {
+		t.Fatalf("bad: %#v %#v", val, euint64)
+	}
 }
 
 func TestFieldSetIndex_FromObject(t *testing.T) {
