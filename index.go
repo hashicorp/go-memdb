@@ -1,6 +1,7 @@
 package memdb
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"reflect"
@@ -247,6 +248,66 @@ func (s *StringMapFieldIndex) FromArgs(args ...interface{}) ([]byte, error) {
 	}
 
 	return []byte(key), nil
+}
+
+// UintFieldIndex is used to extract a uint field from an object using
+// reflection and builds an index on that field.
+type UintFieldIndex struct {
+	Field string
+}
+
+func (u *UintFieldIndex) FromObject(obj interface{}) (bool, []byte, error) {
+	v := reflect.ValueOf(obj)
+	v = reflect.Indirect(v) // Dereference the pointer if any
+
+	fv := v.FieldByName(u.Field)
+	if !fv.IsValid() {
+		return false, nil,
+			fmt.Errorf("field '%s' for %#v is invalid", u.Field, obj)
+	}
+
+	// Check the type
+	if k := fv.Kind(); !IsUintType(k) {
+		return false, nil, fmt.Errorf("field %q is of type %v; want a uint", u.Field, k)
+	}
+
+	// Get the value and encode it
+	val := fv.Uint()
+	buf := make([]byte, 8)
+	binary.PutUvarint(buf, val)
+
+	return true, buf, nil
+}
+
+func (u *UintFieldIndex) FromArgs(args ...interface{}) ([]byte, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("must provide only a single argument")
+	}
+
+	v := reflect.ValueOf(args[0])
+	if !v.IsValid() {
+		return nil, fmt.Errorf("%#v is invalid", args[0])
+	}
+
+	if k := v.Kind(); !IsUintType(k) {
+		return nil, fmt.Errorf("arg is of type %v; want a uint", k)
+	}
+
+	val := v.Uint()
+	buf := make([]byte, 8)
+	binary.PutUvarint(buf, val)
+
+	return buf, nil
+}
+
+// IsUintType returns whether the passed type is a type of uint
+func IsUintType(k reflect.Kind) bool {
+	switch k {
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return true
+	default:
+		return false
+	}
 }
 
 // UUIDFieldIndex is used to extract a field from an object

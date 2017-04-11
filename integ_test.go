@@ -192,6 +192,17 @@ func TestComplexDB(t *testing.T) {
 		t.Fatalf("wrong person!")
 	}
 
+	raw, err = txn.First("people", "age", uint(23))
+	noErr(t, err)
+	if raw == nil {
+		t.Fatalf("should get person")
+	}
+
+	person := raw.(*TestPerson)
+	if person.First != "Alex" {
+		t.Fatalf("wrong person!")
+	}
+
 	// Where in the world is mitchell hashimoto?
 	raw, err = txn.First("people", "name_prefix", "Mitchell")
 	noErr(t, err)
@@ -199,7 +210,7 @@ func TestComplexDB(t *testing.T) {
 		t.Fatalf("should get person")
 	}
 
-	person := raw.(*TestPerson)
+	person = raw.(*TestPerson)
 	if person.First != "Mitchell" {
 		t.Fatalf("wrong person!")
 	}
@@ -304,10 +315,12 @@ func testPopulateData(t *testing.T, db *MemDB) {
 	person2 := testPerson()
 	person2.First = "Mitchell"
 	person2.Last = "Hashimoto"
+	person2.Age = 27
 
 	person3 := testPerson()
 	person3.First = "Alex"
 	person3.Last = "Dadgar"
+	person3.Age = 23
 
 	person1.Sibling = person3
 	person3.Sibling = person1
@@ -342,6 +355,7 @@ type TestPerson struct {
 	ID      string
 	First   string
 	Last    string
+	Age     uint8
 	Sibling *TestPerson
 }
 
@@ -375,6 +389,11 @@ func testComplexSchema() *DBSchema {
 								&StringFieldIndex{Field: "Last"},
 							},
 						},
+					},
+					"age": &IndexSchema{
+						Name:    "age",
+						Unique:  false,
+						Indexer: &UintFieldIndex{Field: "Age"},
 					},
 					"sibling": &IndexSchema{
 						Name:    "sibling",
@@ -431,6 +450,7 @@ func testPerson() *TestPerson {
 		ID:    uuid,
 		First: "Armon",
 		Last:  "Dadgar",
+		Age:   26,
 	}
 	return obj
 }
