@@ -267,13 +267,15 @@ func (u *UintFieldIndex) FromObject(obj interface{}) (bool, []byte, error) {
 	}
 
 	// Check the type
-	if k := fv.Kind(); !IsUintType(k) {
+	k := fv.Kind()
+	size, ok := IsUintType(k)
+	if !ok {
 		return false, nil, fmt.Errorf("field %q is of type %v; want a uint", u.Field, k)
 	}
 
 	// Get the value and encode it
 	val := fv.Uint()
-	buf := make([]byte, 8)
+	buf := make([]byte, size)
 	binary.PutUvarint(buf, val)
 
 	return true, buf, nil
@@ -289,24 +291,36 @@ func (u *UintFieldIndex) FromArgs(args ...interface{}) ([]byte, error) {
 		return nil, fmt.Errorf("%#v is invalid", args[0])
 	}
 
-	if k := v.Kind(); !IsUintType(k) {
+	k := v.Kind()
+	size, ok := IsUintType(k)
+	if !ok {
 		return nil, fmt.Errorf("arg is of type %v; want a uint", k)
 	}
 
 	val := v.Uint()
-	buf := make([]byte, 8)
+	buf := make([]byte, size)
 	binary.PutUvarint(buf, val)
 
 	return buf, nil
 }
 
-// IsUintType returns whether the passed type is a type of uint
-func IsUintType(k reflect.Kind) bool {
+// IsUintType returns whether the passed type is a type of uint and the number
+// of bytes the type is. To avoid platform specific sizes, the uint type returns
+// 8 bytes regardless of if it is smaller.
+func IsUintType(k reflect.Kind) (size int, okay bool) {
 	switch k {
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return true
+	case reflect.Uint:
+		return 8, true
+	case reflect.Uint8:
+		return 1, true
+	case reflect.Uint16:
+		return 2, true
+	case reflect.Uint32:
+		return 4, true
+	case reflect.Uint64:
+		return 8, true
 	default:
-		return false
+		return 0, false
 	}
 }
 

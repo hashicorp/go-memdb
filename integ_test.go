@@ -192,7 +192,7 @@ func TestComplexDB(t *testing.T) {
 		t.Fatalf("wrong person!")
 	}
 
-	raw, err = txn.First("people", "age", uint(23))
+	raw, err = txn.First("people", "age", uint8(23))
 	noErr(t, err)
 	if raw == nil {
 		t.Fatalf("should get person")
