@@ -603,7 +603,7 @@ func TestUintFieldIndex_FromObject(t *testing.T) {
 		},
 		{
 			Field:         "ID",
-			ErrorContains: "want a uint",
+			ErrorContains: "want an int or uint",
 		},
 	}
 
