@@ -43,10 +43,10 @@ func testObj() *TestObject {
 			"":              "asdf",
 		},
 		Uint:   uint(1),
-		Uint8:  uint8(8),
-		Uint16: uint16(16),
-		Uint32: uint32(32),
-		Uint64: uint64(64),
+		Uint8:  uint8(1<<8 - 1),
+		Uint16: uint16(1<<16 - 1),
+		Uint32: uint32(1<<32 - 1),
+		Uint64: uint64(1<<64 - 1),
 	}
 	return obj
 }
@@ -561,11 +561,11 @@ func generateUUID() ([]byte, string) {
 func TestUintFieldIndex_FromObject(t *testing.T) {
 	obj := testObj()
 
-	euint := make([]byte, 8)
-	euint8 := make([]byte, 1)
-	euint16 := make([]byte, 2)
-	euint32 := make([]byte, 4)
-	euint64 := make([]byte, 8)
+	euint := make([]byte, 10)
+	euint8 := make([]byte, 2)
+	euint16 := make([]byte, 3)
+	euint32 := make([]byte, 5)
+	euint64 := make([]byte, 10)
 	binary.PutUvarint(euint, uint64(obj.Uint))
 	binary.PutUvarint(euint8, uint64(obj.Uint8))
 	binary.PutUvarint(euint16, uint64(obj.Uint16))
@@ -654,11 +654,11 @@ func TestUintFieldIndex_FromArgs(t *testing.T) {
 	}
 
 	obj := testObj()
-	euint := make([]byte, 8)
-	euint8 := make([]byte, 1)
-	euint16 := make([]byte, 2)
-	euint32 := make([]byte, 4)
-	euint64 := make([]byte, 8)
+	euint := make([]byte, 10)
+	euint8 := make([]byte, 2)
+	euint16 := make([]byte, 3)
+	euint32 := make([]byte, 5)
+	euint64 := make([]byte, 10)
 	binary.PutUvarint(euint, uint64(obj.Uint))
 	binary.PutUvarint(euint8, uint64(obj.Uint8))
 	binary.PutUvarint(euint16, uint64(obj.Uint16))
