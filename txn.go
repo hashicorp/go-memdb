@@ -263,6 +263,21 @@ func (txn *Txn) Insert(table string, obj interface{}) error {
 	return nil
 }
 
+// Insert is used to add or update an objects into the given table
+func (txn *Txn) InsertBatch(table string, obj ...interface{}) error {
+	if !txn.write {
+		return fmt.Errorf("cannot insert in read-only transaction")
+	}
+
+	for _, item := range obj {
+		err := txn.Insert(table, item)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Delete is used to delete a single object from the given table
 // This object must already exist in the table
 func (txn *Txn) Delete(table string, obj interface{}) error {
