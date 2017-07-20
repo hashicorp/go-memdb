@@ -330,6 +330,96 @@ func (txn *Txn) Delete(table string, obj interface{}) error {
 	return nil
 }
 
+// DeletePrefix is used to delete an entire subtree
+// Nodes in the primary ID index tree is deleted by prefix
+// Objects other indexes are deleted by iterating over all objects that match the prefix
+func (txn *Txn) DeletePrefix(table string, prefix_index string, prefix string) (bool, error) {
+	if !txn.write {
+		return false, fmt.Errorf("cannot delete in read-only transaction")
+	}
+
+	if !strings.HasSuffix(prefix_index, "_prefix") {
+		return false, fmt.Errorf("Index name for DeletePrefix must be a prefix index, Got %v ", prefix_index)
+	}
+
+	// Get an iterator over all of the keys with the given prefix.
+	entries, err := txn.Get(table, prefix_index, prefix)
+	if err != nil {
+		return false, fmt.Errorf("failed kvs lookup: %s", err)
+	}
+	// Get the table schema
+	tableSchema, ok := txn.db.schema.Tables[table]
+	if !ok {
+		return false, fmt.Errorf("invalid table '%s'", table)
+	}
+
+	foundAny := false
+	for entry := entries.Next(); entry != nil; entry = entries.Next() {
+		if !foundAny {
+			foundAny = true
+		}
+		// Get the primary ID of the object
+		idSchema := tableSchema.Indexes[id]
+		idIndexer := idSchema.Indexer.(SingleIndexer)
+		ok, idVal, err := idIndexer.FromObject(entry)
+		if err != nil {
+			return false, fmt.Errorf("failed to build primary index: %v", err)
+		}
+		if !ok {
+			return false, fmt.Errorf("object missing primary index")
+		}
+		// Remove the object from all the indexes except the ID index
+		for name, indexSchema := range tableSchema.Indexes {
+			if name == id {
+				continue
+			}
+			indexTxn := txn.writableIndex(table, name)
+
+			// Handle the update by deleting from the index first
+			var (
+				ok   bool
+				vals [][]byte
+				err  error
+			)
+			switch indexer := indexSchema.Indexer.(type) {
+			case SingleIndexer:
+				var val []byte
+				ok, val, err = indexer.FromObject(entry)
+				vals = [][]byte{val}
+			case MultiIndexer:
+				ok, vals, err = indexer.FromObject(entry)
+			}
+			if err != nil {
+				return false, fmt.Errorf("failed to build index '%s': %v", name, err)
+			}
+
+			if ok {
+				// Handle non-unique index by computing a unique index.
+				// This is done by appending the primary key which must
+				// be unique anyways.
+				for _, val := range vals {
+					if !indexSchema.Unique {
+						val = append(val, idVal...)
+					}
+					indexTxn.Delete(val)
+				}
+			}
+		}
+	}
+	if foundAny {
+		indexTxn := txn.writableIndex(table, "id")
+		val := bytes.Trim([]byte(prefix), "\x00")
+		ok = indexTxn.DeletePrefix(val)
+		if !ok {
+			return false, fmt.Errorf("Unexpected error - prefix %v from table %v didn't have any nodes", prefix, table)
+		}
+	} else {
+		return false, nil
+	}
+
+	return true, nil
+}
+
 // DeleteAll is used to delete all the objects in a given table
 // matching the constraints on the index
 func (txn *Txn) DeleteAll(table, index string, args ...interface{}) (int, error) {
