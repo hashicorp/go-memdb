@@ -330,9 +330,10 @@ func (txn *Txn) Delete(table string, obj interface{}) error {
 	return nil
 }
 
-// DeletePrefix is used to delete an entire subtree
-// Nodes in the primary ID index tree is deleted by prefix
-// Objects other indexes are deleted by iterating over all objects that match the prefix
+// DeletePrefix is used to delete an entire subtree based on a prefix.
+// The given index must be a prefix index, and will be used to perform a scan and enumerate the set of objects to delete.
+// These will be removed from all other indexes, and then a special prefix operation will delete the objects from the given index in an efficient subtree delete operation.
+// This is useful when you have a very large number of objects indexed by the given index, along with a much smaller number of entries in the other indexes for those objects.
 func (txn *Txn) DeletePrefix(table string, prefix_index string, prefix string) (bool, error) {
 	if !txn.write {
 		return false, fmt.Errorf("cannot delete in read-only transaction")
@@ -341,6 +342,8 @@ func (txn *Txn) DeletePrefix(table string, prefix_index string, prefix string) (
 	if !strings.HasSuffix(prefix_index, "_prefix") {
 		return false, fmt.Errorf("Index name for DeletePrefix must be a prefix index, Got %v ", prefix_index)
 	}
+
+	deletePrefixIndex := strings.TrimSuffix(prefix_index, "_prefix")
 
 	// Get an iterator over all of the keys with the given prefix.
 	entries, err := txn.Get(table, prefix_index, prefix)
@@ -370,7 +373,7 @@ func (txn *Txn) DeletePrefix(table string, prefix_index string, prefix string) (
 		}
 		// Remove the object from all the indexes except the ID index
 		for name, indexSchema := range tableSchema.Indexes {
-			if name == id {
+			if name == deletePrefixIndex {
 				continue
 			}
 			indexTxn := txn.writableIndex(table, name)
@@ -407,11 +410,10 @@ func (txn *Txn) DeletePrefix(table string, prefix_index string, prefix string) (
 		}
 	}
 	if foundAny {
-		indexTxn := txn.writableIndex(table, "id")
-		val := bytes.Trim([]byte(prefix), "\x00")
-		ok = indexTxn.DeletePrefix(val)
+		indexTxn := txn.writableIndex(table, deletePrefixIndex)
+		ok = indexTxn.DeletePrefix([]byte(prefix))
 		if !ok {
-			return false, fmt.Errorf("Unexpected error - prefix %v from table %v didn't have any nodes", prefix, table)
+			return false, nil
 		}
 	} else {
 		return false, nil
