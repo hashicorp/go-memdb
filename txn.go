@@ -371,7 +371,7 @@ func (txn *Txn) DeletePrefix(table string, prefix_index string, prefix string) (
 		if !ok {
 			return false, fmt.Errorf("object missing primary index")
 		}
-		// Remove the object from all the indexes except the ID index
+		// Remove the object from all the indexes except the given prefix index
 		for name, indexSchema := range tableSchema.Indexes {
 			if name == deletePrefixIndex {
 				continue
@@ -413,13 +413,11 @@ func (txn *Txn) DeletePrefix(table string, prefix_index string, prefix string) (
 		indexTxn := txn.writableIndex(table, deletePrefixIndex)
 		ok = indexTxn.DeletePrefix([]byte(prefix))
 		if !ok {
-			return false, nil
+			panic(fmt.Errorf("prefix %v matched some entries but DeletePrefix did not delete any ", prefix))
 		}
-	} else {
-		return false, nil
+		return true, nil
 	}
-
-	return true, nil
+	return false, nil
 }
 
 // DeleteAll is used to delete all the objects in a given table
