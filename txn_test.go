@@ -704,6 +704,92 @@ func TestTxn_DeleteAll_Prefix(t *testing.T) {
 	}
 }
 
+func TestTxn_DeletePrefix(t *testing.T) {
+	db := testDB(t)
+	txn := db.Txn(true)
+
+	obj1 := &TestObject{
+		ID:  "my-object",
+		Foo: "abc",
+		Qux: []string{"abc1", "abc1"},
+	}
+	obj2 := &TestObject{
+		ID:  "my-cool-thing",
+		Foo: "xyz",
+		Qux: []string{"xyz1", "xyz2"},
+	}
+	obj3 := &TestObject{
+		ID:  "my-other-cool-thing",
+		Foo: "xyz",
+		Qux: []string{"xyz1", "xyz2"},
+	}
+
+	err := txn.Insert("main", obj1)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	err = txn.Insert("main", obj2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	err = txn.Insert("main", obj3)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Lookup by qux field index
+	iterator, err := txn.Get("main", "qux", "abc1")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	var objects []TestObject
+	for obj := iterator.Next(); obj != nil; obj = iterator.Next() {
+		object := obj.(*TestObject)
+		objects = append(objects, *object)
+	}
+	if len(objects) != 1 {
+		t.Fatalf("Expected exactly one object")
+	}
+	expectedID := "my-object"
+	if objects[0].ID != expectedID {
+		t.Fatalf("Unexpected id, expected %v, but got %v", expectedID, objects[0].ID)
+	}
+
+	// Delete a prefix
+	deleted, err := txn.DeletePrefix("main", "id_prefix", "my-")
+	if err != nil {
+		t.Fatalf("Unexpected err: %v", err)
+	}
+	if !deleted {
+		t.Fatalf("Expected DeletePrefix to return true")
+	}
+
+	// Ensure we cannot lookup by id field index
+	raw, err := txn.First("main", "id_prefix", "my-")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if raw != nil {
+		t.Fatalf("Unexpected value in tree: %#v", raw)
+	}
+
+	// Ensure we cannot lookup by qux or foo field indexes either anymore
+	verifyNoResults(t, txn, "main", "qux", "abc1")
+	verifyNoResults(t, txn, "main", "foo", "abc")
+}
+func verifyNoResults(t *testing.T, txn *Txn, table string, index string, value string) {
+	iterator, err := txn.Get(table, index, value)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if iterator != nil {
+		next := iterator.Next()
+		if next != nil {
+			t.Fatalf("Unexpected values in tree, expected to be empty")
+		}
+	}
+}
+
 func TestTxn_InsertGet_Prefix(t *testing.T) {
 	db := testDB(t)
 	txn := db.Txn(true)
