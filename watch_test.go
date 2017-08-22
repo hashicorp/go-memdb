@@ -58,9 +58,8 @@ func testWatch(size, fire int) error {
 }
 
 func TestWatch(t *testing.T) {
-	// Sweep through a bunch of chunks to hit the various cases of dividing
-	// the work into watchFew calls.
-	for size := 0; size < 3*aFew; size++ {
+	// Check that this works for any number of channels.
+	for size := 0; size < 3*32; size++ {
 		// Fire each possible channel slot.
 		for fire := 0; fire < size; fire++ {
 			if err := testWatch(size, fire); err != nil {

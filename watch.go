@@ -1,6 +1,9 @@
 package memdb
 
-import "time"
+import (
+	"reflect"
+	"time"
+)
 
 // WatchSet is a collection of watch channels.
 type WatchSet map[<-chan struct{}]struct{}
@@ -46,63 +49,22 @@ func (w WatchSet) Watch(timeoutCh <-chan time.Time) bool {
 		return false
 	}
 
-	if n := len(w); n <= aFew {
-		idx := 0
-		chunk := make([]<-chan struct{}, aFew)
-		for watchCh := range w {
-			chunk[idx] = watchCh
-			idx++
-		}
-		return watchFew(chunk, timeoutCh)
-	} else {
-		return w.watchMany(timeoutCh)
-	}
-}
+	selectCases := make([]reflect.SelectCase, 0, 1+len(w))
 
-// watchMany is used if there are many watchers.
-func (w WatchSet) watchMany(timeoutCh <-chan time.Time) bool {
-	// Make a fake timeout channel we can feed into watchFew to cancel all
-	// the blocking goroutines.
-	doneCh := make(chan time.Time)
-	defer close(doneCh)
+	// Add the timeout channel with index 0.
+	selectCases = append(selectCases, reflect.SelectCase{
+		Dir:  reflect.SelectRecv,
+		Chan: reflect.ValueOf(timeoutCh),
+	})
 
-	// Set up a goroutine for each watcher.
-	triggerCh := make(chan struct{}, 1)
-	watcher := func(chunk []<-chan struct{}) {
-		if timeout := watchFew(chunk, doneCh); !timeout {
-			select {
-			case triggerCh <- struct{}{}:
-			default:
-			}
-		}
-	}
-
-	// Apportion the watch channels into chunks we can feed into the
-	// watchFew helper.
-	idx := 0
-	chunk := make([]<-chan struct{}, aFew)
 	for watchCh := range w {
-		subIdx := idx % aFew
-		chunk[subIdx] = watchCh
-		idx++
-
-		// Fire off this chunk and start a fresh one.
-		if idx%aFew == 0 {
-			go watcher(chunk)
-			chunk = make([]<-chan struct{}, aFew)
-		}
+		selectCases = append(selectCases, reflect.SelectCase{
+			Dir:  reflect.SelectRecv,
+			Chan: reflect.ValueOf(watchCh),
+		})
 	}
 
-	// Make sure to watch any residual channels in the last chunk.
-	if idx%aFew != 0 {
-		go watcher(chunk)
-	}
+	chosenIndex, _, _ := reflect.Select(selectCases)
 
-	// Wait for a channel to trigger or timeout.
-	select {
-	case <-triggerCh:
-		return false
-	case <-timeoutCh:
-		return true
-	}
+	return chosenIndex == 0
 }
