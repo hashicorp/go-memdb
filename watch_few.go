@@ -3,7 +3,7 @@ package memdb
 //go:generate sh -c "go run watch-gen/main.go >watch_few.go"
 
 import(
-	"time"
+	"context"
 )
 
 // aFew gives how many watchers this function is wired to support. You must
