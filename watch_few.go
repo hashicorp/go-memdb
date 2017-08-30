@@ -1,7 +1,10 @@
-//go:generate sh -c "go run watch-gen/main.go >watch_few.go"
 package memdb
 
-import "context"
+//go:generate sh -c "go run watch-gen/main.go >watch_few.go"
+
+import(
+	"time"
+)
 
 // aFew gives how many watchers this function is wired to support. You must
 // always pass a full slice of this length, but unused channels can be nil.
