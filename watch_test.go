@@ -35,7 +35,7 @@ func testWatch(size, fire int, useCtx bool) error {
 	doneCh := make(chan bool, 1)
 	go func() {
 		if useCtx {
-			doneCh <- ws.WatchCtx(ctx)
+			doneCh <- ws.WatchCtx(ctx) != nil
 		} else {
 			doneCh <- ws.Watch(timeoutCh)
 		}
