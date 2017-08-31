@@ -31,14 +31,14 @@ const aFew = {{len .}}
 
 // watchFew is used if there are only a few watchers as a performance
 // optimization.
-func watchFew(ctx context.Context, ch []<-chan struct{}) bool {
+func watchFew(ctx context.Context, ch []<-chan struct{}) error {
 	select {
 {{range $i, $unused := .}}
 	case <-ch[{{printf "%d" $i}}]:
-		return false
+		return nil
 {{end}}
 	case <-ctx.Done():
-		return true
+		return ctx.Err()
 	}
 }
 `
