@@ -63,6 +63,7 @@ func (s *StringFieldIndex) FromObject(obj interface{}) (bool, []byte, error) {
 	v = reflect.Indirect(v) // Dereference the pointer if any
 
 	fv := v.FieldByName(s.Field)
+	fv = reflect.Indirect(fv)
 	if !fv.IsValid() {
 		return false, nil,
 			fmt.Errorf("field '%s' for %#v is invalid", s.Field, obj)

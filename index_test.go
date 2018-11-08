@@ -13,6 +13,7 @@ import (
 type TestObject struct {
 	ID       string
 	Foo      string
+	Fu       *string
 	Bar      int
 	Baz      string
 	Bam      *bool
@@ -28,11 +29,16 @@ type TestObject struct {
 	Uint64   uint64
 }
 
+func String(s string) *string {
+	return &s
+}
+
 func testObj() *TestObject {
 	b := true
 	obj := &TestObject{
 		ID:  "my-cool-obj",
 		Foo: "Testing",
+		Fu:  String("Fu"),
 		Bar: 42,
 		Baz: "yep",
 		Bam: &b,
@@ -91,6 +97,18 @@ func TestStringFieldIndex_FromObject(t *testing.T) {
 	}
 	if ok {
 		t.Fatalf("should not ok")
+	}
+
+	pointerField := StringFieldIndex{"Fu", false}
+	ok, val, err = pointerField.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "Fu\x00" {
+		t.Fatalf("bad: %s", val)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
 	}
 }
 
