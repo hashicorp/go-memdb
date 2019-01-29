@@ -1,4 +1,4 @@
-package explorer
+package explorer_server
 
 import (
 	"fmt"

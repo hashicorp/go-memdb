@@ -1,8 +1,9 @@
-package explorer
+package explorer_server
 
 import (
 	"github.com/gin-gonic/gin"
 )
+
 
 func NewServer() *gin.Engine {
 	sv := gin.Default()
@@ -15,7 +16,7 @@ func NewServer() *gin.Engine {
 	sv.Use(HandleInternalServerError)
 
 	// Load views
-	sv.LoadHTMLGlob("../explorer/templates/*")
+	sv.LoadHTMLGlob("../explorer_server/templates/*")
 
 	return sv
 }
