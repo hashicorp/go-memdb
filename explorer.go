@@ -1,24 +1,25 @@
 package memdb
 
+import "fmt"
+
+type Explorer interface {
+	ListAllTablesName() ([]string, error)
+	TableDateView() ([]interface{}, error)
+}
+
 type explorer struct {
 	txn *Txn
 }
 
 var gExplorer *explorer
 
-func InitExplorer(txn *Txn) {
-	gExplorer = &explorer{
-		txn: txn,
-	}
-}
-
-func (ge *explorer) ListAllTablesName() []string {
+func (ge *explorer) ListAllTablesName() ([]string, error) {
 	tablesName := make([]string, 0)
 	for tblName := range ge.txn.db.schema.Tables {
 		tablesName = append(tablesName, tblName)
 	}
 
-	return tablesName
+	return tablesName, nil
 }
 
 func (ge *explorer) TableDateView() ([]interface{}, error) {
@@ -30,6 +31,17 @@ func (ge *explorer) TableDateView() ([]interface{}, error) {
 	return []interface{}{result}, nil
 }
 
-func GetGlobalConnector() *explorer {
-	return gExplorer
+func InitGlobalExplorer(txn *Txn) {
+	gExplorer = &explorer{
+		txn: txn,
+	}
+}
+
+func GetGlobalExplorer() (ge Explorer, err error) {
+	if gExplorer == nil {
+		err = fmt.Errorf("Global explorer was not inited by InitGlobalExplorer")
+		return
+	}
+
+	return gExplorer, nil
 }

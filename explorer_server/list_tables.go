@@ -6,8 +6,19 @@ import (
 )
 
 func ListAllTables(gCtx *gin.Context) {
-	connector := memdb.GetGlobalConnector()
-	gCtx.JSON(200, connector.ListAllTablesName())
+	connector, err := memdb.GetGlobalExplorer()
+	if err != nil {
+		gCtx.JSON(500, err)
+		return
+	}
+
+	tables, err := connector.ListAllTablesName()
+	if err != nil {
+		gCtx.JSON(500, err)
+		return
+	}
+
+	gCtx.JSON(200, tables)
 
 	//gCtx.HTML(200, "list_all_tables.tmpl", []string{})
 }
