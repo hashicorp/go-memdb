@@ -1,0 +1,9 @@
+{{ template "header.html" . }}
+
+<ul>
+    {{ range .records }}
+        <li><a href="/data?table={{ . }}">{{ . }}</a></li>
+    {{ end }}
+</ul>
+
+{{ template "footer.html" . }}

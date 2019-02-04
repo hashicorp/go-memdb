@@ -14,7 +14,7 @@ const (
 )
 
 // HandleInternalServerError handles error 500
-func HandleInternalServerError(c *gin.Context) {
+func InternalServerErrorHandler(c *gin.Context) {
 	defer func(c *gin.Context) {
 		if rec := recover(); rec != nil {
 			errMsg := fmt.Sprintf("%v", rec)

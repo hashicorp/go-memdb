@@ -48,8 +48,8 @@ func main() {
 	// Commit the transaction
 	txn.Commit()
 
-	memdb.InitGlobalExplorer(db.Txn(false))
+	explorer := memdb.NewExplorer(db.Txn(false))
 
-	sv := explorer_server.NewServer()
+	sv := explorer_server.NewServer(explorer)
 	sv.Run(":8888")
 }

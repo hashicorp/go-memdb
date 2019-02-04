@@ -1,19 +1,15 @@
 package memdb
 
-import "fmt"
-
 type Explorer interface {
 	ListAllTablesName() ([]string, error)
-	TableDateView() ([]interface{}, error)
+	TableDataView(params TableDataViewParams) ([]interface{}, error)
 }
 
 type explorer struct {
 	txn *Txn
 }
 
-var gExplorer *explorer
-
-func (ge *explorer) ListAllTablesName() ([]string, error) {
+func (ge explorer) ListAllTablesName() ([]string, error) {
 	tablesName := make([]string, 0)
 	for tblName := range ge.txn.db.schema.Tables {
 		tablesName = append(tablesName, tblName)
@@ -22,26 +18,41 @@ func (ge *explorer) ListAllTablesName() ([]string, error) {
 	return tablesName, nil
 }
 
-func (ge *explorer) TableDateView() ([]interface{}, error) {
-	result, err := ge.txn.First("person", "id", "joe@aol.com")
+type TableDataViewParams struct {
+	Table string
+	Index string
+	Limit uint64
+	Offset uint64
+	//TODO: FilterFunc FilterFunc
+}
+
+func (ge explorer) TableDataView(params TableDataViewParams) ([]interface{}, error) {
+	records := make([]interface{}, 0)
+	ri, err := ge.txn.Get(params.Table, params.Index)
 	if err != nil {
 		return nil, err
 	}
 
-	return []interface{}{result}, nil
+	limit, offset := params.Limit, params.Offset
+	count := uint64(0)
+	idx := uint64(0)
+	for record := ri.Next(); record != nil; record = ri.Next() {
+		idx ++
+
+		if idx >= offset && count <= limit {
+			records = append(records, record)
+			count ++
+			continue
+		}
+
+		break
+	}
+
+	return records, nil
 }
 
-func InitGlobalExplorer(txn *Txn) {
-	gExplorer = &explorer{
+func NewExplorer(txn *Txn) Explorer {
+	return explorer{
 		txn: txn,
 	}
-}
-
-func GetGlobalExplorer() (ge Explorer, err error) {
-	if gExplorer == nil {
-		err = fmt.Errorf("Global explorer was not inited by InitGlobalExplorer")
-		return
-	}
-
-	return gExplorer, nil
 }
