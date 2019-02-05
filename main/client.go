@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/manhdaovan/go-memdb"
 	"github.com/manhdaovan/go-memdb/explorer_server"
+	"strconv"
 )
 
 // Create a sample struct
@@ -39,10 +40,15 @@ func main() {
 	// Create a write transaction
 	txn := db.Txn(true)
 
-	// Insert a new person
-	p := &Person{"joe@aol.com", "Joe", 30}
-	if err := txn.Insert("person", p); err != nil {
-		panic(err)
+	// Insert a new 100 persons
+	var p *Person
+	var iStr string
+	for idx := int64(0); idx < 100; idx++ {
+		iStr = strconv.FormatInt(idx, 10)
+		p = &Person{"joe-"+ iStr +"@aol.com", "Joe" + iStr, int(idx)}
+		if err := txn.Insert("person", p); err != nil {
+			panic(err)
+		}
 	}
 
 	// Commit the transaction

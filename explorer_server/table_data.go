@@ -3,6 +3,7 @@ package explorer_server
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/manhdaovan/go-memdb"
+	"reflect"
 	"strconv"
 )
 
@@ -16,6 +17,28 @@ func paramsFromCtx(gCtx *gin.Context) memdb.TableDataViewParams {
 		Limit: limit,
 		Offset: offset,
 	}
+}
+
+func extractTableColumn(records []interface{}) []string {
+	columns := make([]string, 0)
+	if len(records) == 0{
+		return columns
+	}
+
+	record := records[0]
+	typeOfRecord := reflect.TypeOf(record)
+	if typeOfRecord.Kind() == reflect.Ptr {
+		typeOfRecord = typeOfRecord.Elem()
+	}
+	for i := 0; i < typeOfRecord.NumField(); i ++ {
+		columns = append(columns, typeOfRecord.Field(i).Name)
+	}
+
+	return columns
+}
+
+func extractTableData(records []interface{}) [][]interface{} {
+	return [][]interface{}{}
 }
 
 func TableDataViewHandler(gCtx *gin.Context) {
@@ -32,12 +55,17 @@ func TableDataViewHandler(gCtx *gin.Context) {
 		return
 	}
 
+	columns := extractTableColumn(records)
+	data := extractTableData(records)
 
 	gCtx.HTML(200,
 		"table_data_view.html",
 		gin.H{
 			"title": "Table Data: " + params.Table,
+			"columns": columns,
+			"data": data,
 			"records": records,
+			"params": params,
 		},
 	)
 }

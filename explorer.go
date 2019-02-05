@@ -9,7 +9,7 @@ type explorer struct {
 	txn *Txn
 }
 
-func (ge explorer) ListAllTablesName() ([]string, error) {
+func (ge *explorer) ListAllTablesName() ([]string, error) {
 	tablesName := make([]string, 0)
 	for tblName := range ge.txn.db.schema.Tables {
 		tablesName = append(tablesName, tblName)
@@ -26,7 +26,7 @@ type TableDataViewParams struct {
 	//TODO: FilterFunc FilterFunc
 }
 
-func (ge explorer) TableDataView(params TableDataViewParams) ([]interface{}, error) {
+func (ge *explorer) TableDataView(params TableDataViewParams) ([]interface{}, error) {
 	records := make([]interface{}, 0)
 	ri, err := ge.txn.Get(params.Table, params.Index)
 	if err != nil {
@@ -39,7 +39,10 @@ func (ge explorer) TableDataView(params TableDataViewParams) ([]interface{}, err
 	for record := ri.Next(); record != nil; record = ri.Next() {
 		idx ++
 
-		if idx >= offset && count <= limit {
+		if idx <= offset {
+			continue
+		}
+		if count < limit {
 			records = append(records, record)
 			count ++
 			continue
@@ -52,7 +55,7 @@ func (ge explorer) TableDataView(params TableDataViewParams) ([]interface{}, err
 }
 
 func NewExplorer(txn *Txn) Explorer {
-	return explorer{
+	return &explorer{
 		txn: txn,
 	}
 }
