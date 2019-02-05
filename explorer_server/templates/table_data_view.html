@@ -3,6 +3,7 @@
 {{ if eq (len .columns) 0 }}
     No data found.
 {{ else }}
+    {{ template  "_tables_list.html" . }}
     <table>
         <thead>
             <tr>
@@ -14,9 +15,9 @@
         <tbody>
             {{ range $rcd := .records }}
                 <tr>
-                    <td>{{ $rcd.Email }}</td>
-                    <td>{{ $rcd.Name }}</td>
-                    <td>{{ $rcd.Age }}</td>
+                    {{ range $rcd }}
+                        <td>{{ . }}</td>
+                    {{ end }}
                 </tr>
             {{ end }}
         </tbody>

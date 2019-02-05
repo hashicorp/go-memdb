@@ -7,15 +7,48 @@ import (
 	"strconv"
 )
 
-func paramsFromCtx(gCtx *gin.Context) memdb.TableDataViewParams {
-	limit, _ := strconv.ParseUint(gCtx.DefaultQuery("limit", "100"), 10, 64)
-	offset, _ := strconv.ParseUint(gCtx.DefaultQuery("offset", "0"), 10, 64)
+type tableDataViewParams struct {
+	table string
+	index string
+	limit uint64
+	currentPage uint64
+	format string
+}
 
-	return memdb.TableDataViewParams{
-		Table: gCtx.Query("table"),
-		Index: gCtx.DefaultQuery("index", "id"),
-		Limit: limit,
-		Offset: offset,
+func (p *tableDataViewParams) GetTableName() string {
+	return p.table
+}
+
+func (p *tableDataViewParams) GetIndexName() string {
+	return p.index
+}
+
+func (p *tableDataViewParams) GetLimit() uint64 {
+	return p.limit
+}
+
+func (p *tableDataViewParams) GetOffset() uint64 {
+	return p.limit * (p.currentPage - 1)
+}
+
+func (p *tableDataViewParams) GetCurrentPage() uint64 {
+	return p.currentPage
+}
+
+func (p *tableDataViewParams) GetResponseFormat() string {
+	return p.table
+}
+
+func paramsFromCtx(gCtx *gin.Context) *tableDataViewParams {
+	limit, _ := strconv.ParseUint(gCtx.DefaultQuery("limit", "100"), 10, 64)
+	currentPage, _ := strconv.ParseUint(gCtx.DefaultQuery("page", "1"), 10, 64)
+
+	return &tableDataViewParams{
+		table: gCtx.Query("table"),
+		index: gCtx.DefaultQuery("index", "id"),
+		limit: limit,
+		currentPage: currentPage,
+		format: gCtx.DefaultQuery("format", "html"),
 	}
 }
 
@@ -37,8 +70,28 @@ func extractTableColumn(records []interface{}) []string {
 	return columns
 }
 
-func extractTableData(records []interface{}) [][]interface{} {
-	return [][]interface{}{}
+func extractRecordData(record interface{}) []interface{} {
+	data := make([]interface{}, 0)
+	value := reflect.ValueOf(record)
+	if value.Kind() == reflect.Ptr {
+		value = value.Elem()
+	}
+
+	for i := 0; i < value.NumField(); i ++ {
+		data = append(data, value.Field(i).Interface())
+	}
+
+	return data
+}
+
+func formatTableData(records []interface{}) [][]interface{} {
+	data := make([][]interface{}, 0)
+
+	for _, rcd := range records {
+		data = append(data, extractRecordData(rcd))
+	}
+
+	return data
 }
 
 func TableDataViewHandler(gCtx *gin.Context) {
@@ -55,17 +108,39 @@ func TableDataViewHandler(gCtx *gin.Context) {
 		return
 	}
 
-	columns := extractTableColumn(records)
-	data := extractTableData(records)
+	tables, _ := explorer.(memdb.Explorer).ListAllTablesName()
+	switch params.GetResponseFormat() {
+	case "json":
+		renderJson(gCtx, records, params)
+	case "html":
+		renderHtml(gCtx, records, params, tables)
+	default:
+		renderHtml(gCtx, records, params, tables)
+	}
+}
 
-	gCtx.HTML(200,
+func renderHtml(c *gin.Context, records []interface{}, params memdb.TableDataViewParams, tables []string) {
+	columns := extractTableColumn(records)
+	data := formatTableData(records)
+
+	c.HTML(200,
 		"table_data_view.html",
 		gin.H{
-			"title": "Table Data: " + params.Table,
+			"title": "Table Data: " + params.GetTableName(),
 			"columns": columns,
-			"data": data,
-			"records": records,
+			"records": data,
 			"params": params,
+			"tables": tables,
 		},
 	)
+}
+
+func renderJson(c *gin.Context, records []interface{}, params memdb.TableDataViewParams) {
+	columns := extractTableColumn(records)
+
+	c.JSON(200, gin.H{
+		"columns": columns,
+		"records": records,
+		"params": params,
+	})
 }

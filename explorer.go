@@ -18,22 +18,27 @@ func (ge *explorer) ListAllTablesName() ([]string, error) {
 	return tablesName, nil
 }
 
-type TableDataViewParams struct {
-	Table string
-	Index string
-	Limit uint64
-	Offset uint64
+type Paginator interface {
+	GetLimit() uint64
+	GetCurrentPage() uint64
+	GetOffset() uint64
+}
+
+type TableDataViewParams interface {
+	GetTableName() string
+	GetIndexName() string
+	Paginator
 	//TODO: FilterFunc FilterFunc
 }
 
 func (ge *explorer) TableDataView(params TableDataViewParams) ([]interface{}, error) {
 	records := make([]interface{}, 0)
-	ri, err := ge.txn.Get(params.Table, params.Index)
+	ri, err := ge.txn.Get(params.GetTableName(), params.GetIndexName())
 	if err != nil {
 		return nil, err
 	}
 
-	limit, offset := params.Limit, params.Offset
+	limit, offset := params.GetLimit(), params.GetOffset()
 	count := uint64(0)
 	idx := uint64(0)
 	for record := ri.Next(); record != nil; record = ri.Next() {
