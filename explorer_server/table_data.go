@@ -1,6 +1,7 @@
 package explorer_server
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/manhdaovan/go-memdb"
 	"reflect"
@@ -13,6 +14,16 @@ type tableDataViewParams struct {
 	limit uint64
 	currentPage uint64
 	format string
+}
+
+func (p *tableDataViewParams) ToMap() map[string]interface{} {
+	return map[string]interface{}{
+		"table": p.table,
+		"index": p.index,
+		"limit": p.limit,
+		"page": p.currentPage,
+		"format": p.format,
+	}
 }
 
 func (p *tableDataViewParams) GetTableName() string {
@@ -35,8 +46,13 @@ func (p *tableDataViewParams) GetCurrentPage() uint64 {
 	return p.currentPage
 }
 
-func (p *tableDataViewParams) GetResponseFormat() string {
-	return p.table
+func (p *tableDataViewParams) getResponseFormat() string {
+	return p.format
+}
+
+func (p *tableDataViewParams) concatParamsToUrl() string {
+	return fmt.Sprintf("/data?table=%s&index=%s&limit=%d&format=%s",
+		p.table, p.index, p.limit, p.format)
 }
 
 func paramsFromCtx(gCtx *gin.Context) *tableDataViewParams {
@@ -109,7 +125,7 @@ func TableDataViewHandler(gCtx *gin.Context) {
 	}
 
 	tables, _ := explorer.(memdb.Explorer).ListAllTablesName()
-	switch params.GetResponseFormat() {
+	switch params.getResponseFormat() {
 	case "json":
 		renderJson(gCtx, records, params)
 	case "html":
@@ -119,9 +135,13 @@ func TableDataViewHandler(gCtx *gin.Context) {
 	}
 }
 
-func renderHtml(c *gin.Context, records []interface{}, params memdb.TableDataViewParams, tables []string) {
+func renderHtml(c *gin.Context, records []interface{}, params *tableDataViewParams, tables []string) {
 	columns := extractTableColumn(records)
 	data := formatTableData(records)
+	paginator := paginator{
+		baseUrl: params.concatParamsToUrl(),
+		currentPage: params.currentPage,
+	}
 
 	c.HTML(200,
 		"table_data_view.html",
@@ -129,18 +149,18 @@ func renderHtml(c *gin.Context, records []interface{}, params memdb.TableDataVie
 			"title": "Table Data: " + params.GetTableName(),
 			"columns": columns,
 			"records": data,
-			"params": params,
 			"tables": tables,
+			"pages": paginator.BuildPaginationUrls(),
 		},
 	)
 }
 
-func renderJson(c *gin.Context, records []interface{}, params memdb.TableDataViewParams) {
+func renderJson(c *gin.Context, records []interface{}, params *tableDataViewParams) {
 	columns := extractTableColumn(records)
 
 	c.JSON(200, gin.H{
 		"columns": columns,
 		"records": records,
-		"params": params,
+		"params": params.ToMap(),
 	})
 }

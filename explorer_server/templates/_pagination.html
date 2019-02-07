@@ -1,0 +1,11 @@
+<span>
+    {{ range $p := .pages }}
+        <span>
+            {{if ne $p.PageNumber $p.CurrentPage }}
+                <a href="{{ $p.Link }}">{{ $p.PageNumber }}</a>
+            {{else}}
+                {{ $p.PageNumber }}
+            {{end}}
+        </span>
+    {{ end }}
+</span>
