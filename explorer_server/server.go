@@ -29,4 +29,3 @@ func NewServer(explr memdb.Explorer) *gin.Engine {
 
 	return sv
 }
-

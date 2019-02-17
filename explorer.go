@@ -50,14 +50,14 @@ func (ge *explorer) TableDataView(params TableDataViewParams) ([]interface{}, er
 	count := uint64(0)
 	idx := uint64(0)
 	for record := ri.Next(); record != nil; record = ri.Next() {
-		idx ++
+		idx++
 
 		if idx <= offset {
 			continue
 		}
 		if count < limit {
 			records = append(records, record)
-			count ++
+			count++
 			continue
 		}
 
@@ -67,7 +67,7 @@ func (ge *explorer) TableDataView(params TableDataViewParams) ([]interface{}, er
 	return records, nil
 }
 
-func(ge *explorer) CountRecords(table string) (uint64, error) {
+func (ge *explorer) CountRecords(table string) (uint64, error) {
 	var recordCnt uint64 = 0
 	indexes, err := ge.getTableIndexes(table)
 	if err != nil {
@@ -80,13 +80,13 @@ func(ge *explorer) CountRecords(table string) (uint64, error) {
 	}
 
 	for record := ri.Next(); record != nil; record = ri.Next() {
-		recordCnt ++
+		recordCnt++
 	}
 
 	return recordCnt, nil
 }
 
-func(ge *explorer) getTableIndexes(table string) ([]string, error) {
+func (ge *explorer) getTableIndexes(table string) ([]string, error) {
 	schema, ok := ge.txn.db.schema.Tables[table]
 	if !ok {
 		return nil, fmt.Errorf("Invalid table")

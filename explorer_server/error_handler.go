@@ -7,6 +7,7 @@ import (
 )
 
 type ErrorCode int
+
 const (
 	AuthErrorCode ErrorCode = iota + 1001
 	InternalServerErrorCode

@@ -6,14 +6,14 @@ import (
 )
 
 type paginator struct {
-	baseUrl string
+	baseUrl     string
 	currentPage uint64
 }
 
 type page struct {
 	CurrentPage uint64
-	PageNumber uint64
-	Link string
+	PageNumber  uint64
+	Link        string
 }
 
 func (p *paginator) BuildPaginationUrls() []page {
@@ -29,10 +29,10 @@ func (p *paginator) BuildPaginationUrls() []page {
 	max := p.currentPage + 20
 
 	pages := make([]page, 0)
-	for pageNumber := min; pageNumber <= max; pageNumber ++ {
+	for pageNumber := min; pageNumber <= max; pageNumber++ {
 		pages = append(pages, page{
-			Link: fmt.Sprintf("%s%spage=%d", p.baseUrl, combineChar, pageNumber),
-			PageNumber: pageNumber,
+			Link:        fmt.Sprintf("%s%spage=%d", p.baseUrl, combineChar, pageNumber),
+			PageNumber:  pageNumber,
 			CurrentPage: p.currentPage,
 		})
 	}

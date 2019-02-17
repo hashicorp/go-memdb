@@ -5,7 +5,7 @@ import (
 	"github.com/manhdaovan/go-memdb"
 )
 
-func ListAllTablesHandler(gCtx *gin.Context){
+func ListAllTablesHandler(gCtx *gin.Context) {
 	explorer, ok := gCtx.Get(GIN_CTX_EXPLORER)
 	if !ok {
 		gCtx.JSON(500, "explorer not set to gin context yet")
@@ -30,7 +30,7 @@ func ListAllTablesHandler(gCtx *gin.Context){
 	gCtx.HTML(200,
 		"list_all_tables.html",
 		gin.H{
-			"title": "List all tables",
+			"title":  "List all tables",
 			"tables": recordCnts,
 		},
 	)

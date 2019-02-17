@@ -11,17 +11,17 @@ import (
 var limitValues []uint64 = []uint64{10, 50, 100, 200}
 
 type tableDataViewParams struct {
-	table string
-	limit uint64
+	table       string
+	limit       uint64
 	currentPage uint64
-	format string
+	format      string
 }
 
 func (p *tableDataViewParams) ToMap() map[string]interface{} {
 	return map[string]interface{}{
-		"table": p.table,
-		"limit": p.limit,
-		"page": p.currentPage,
+		"table":  p.table,
+		"limit":  p.limit,
+		"page":   p.currentPage,
 		"format": p.format,
 	}
 }
@@ -56,16 +56,16 @@ func paramsFromCtx(gCtx *gin.Context) *tableDataViewParams {
 	currentPage, _ := strconv.ParseUint(gCtx.DefaultQuery("page", "1"), 10, 64)
 
 	return &tableDataViewParams{
-		table: gCtx.Query("table"),
-		limit: limit,
+		table:       gCtx.Query("table"),
+		limit:       limit,
 		currentPage: currentPage,
-		format: gCtx.DefaultQuery("format", "html"),
+		format:      gCtx.DefaultQuery("format", "html"),
 	}
 }
 
 func extractTableColumn(records []interface{}) []string {
 	columns := make([]string, 0)
-	if len(records) == 0{
+	if len(records) == 0 {
 		return columns
 	}
 
@@ -74,7 +74,7 @@ func extractTableColumn(records []interface{}) []string {
 	if typeOfRecord.Kind() == reflect.Ptr {
 		typeOfRecord = typeOfRecord.Elem()
 	}
-	for i := 0; i < typeOfRecord.NumField(); i ++ {
+	for i := 0; i < typeOfRecord.NumField(); i++ {
 		columns = append(columns, typeOfRecord.Field(i).Name)
 	}
 
@@ -88,7 +88,7 @@ func extractRecordData(record interface{}) []interface{} {
 		value = value.Elem()
 	}
 
-	for i := 0; i < value.NumField(); i ++ {
+	for i := 0; i < value.NumField(); i++ {
 		data = append(data, value.Field(i).Interface())
 	}
 
@@ -134,20 +134,20 @@ func renderHtml(c *gin.Context, records []interface{}, params *tableDataViewPara
 	columns := extractTableColumn(records)
 	data := formatTableData(records)
 	paginator := paginator{
-		baseUrl: params.concatParamsToUrl(),
+		baseUrl:     params.concatParamsToUrl(),
 		currentPage: params.currentPage,
 	}
 
 	c.HTML(200,
 		"table_data_view.html",
 		gin.H{
-			"title": "Table Data: " + params.GetTableName(),
+			"title":   "Table Data: " + params.GetTableName(),
 			"columns": columns,
 			"records": data,
-			"tables": tables,
-			"pages": paginator.BuildPaginationUrls(),
-			"params": params,
-			"limits":limitValues,
+			"tables":  tables,
+			"pages":   paginator.BuildPaginationUrls(),
+			"params":  params,
+			"limits":  limitValues,
 		},
 	)
 }
@@ -158,6 +158,6 @@ func renderJson(c *gin.Context, records []interface{}, params *tableDataViewPara
 	c.JSON(200, gin.H{
 		"columns": columns,
 		"records": records,
-		"params": params.ToMap(),
+		"params":  params.ToMap(),
 	})
 }
