@@ -1,5 +1,9 @@
 <select name="select-table" id="select-table">
     {{ range .tables }}
-        <option value="{{ . }}">{{ . }}</option>
+        {{ if eq $.params.GetTableName . }}
+            <option value="{{ . }}" selected >{{ . }}</option>
+        {{ else }}
+            <option value="{{ . }}">{{ . }}</option>
+        {{ end }}
     {{ end }}
 </select>

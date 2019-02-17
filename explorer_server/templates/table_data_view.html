@@ -1,9 +1,13 @@
 {{ template "header.html" . }}
 
+<h3>{{ .title }}</h3>
+
+{{ template  "_tables_list.html" . }}
+{{ template  "_format.html" . }}
+
 {{ if eq (len .columns) 0 }}
     No data found.
 {{ else }}
-    {{ template  "_tables_list.html" . }}
     <table>
         <thead>
             <tr>

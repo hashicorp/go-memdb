@@ -1,8 +1,8 @@
 {{ template "header.html" . }}
 
 <ul>
-    {{ range .tables }}
-        <li><a href="/data?table={{ . }}">{{ . }}</a></li>
+    {{ range $table, $recordCount := .tables }}
+        <li><a href="/data?table={{ $table }}">{{ $table }} ({{ $recordCount }} record(s))</a></li>
     {{ end }}
 </ul>
 

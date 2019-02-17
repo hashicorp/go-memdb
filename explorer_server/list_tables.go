@@ -11,18 +11,27 @@ func ListAllTablesHandler(gCtx *gin.Context){
 		gCtx.JSON(500, "explorer not set to gin context yet")
 		return
 	}
-
-	tables, err := explorer.(memdb.Explorer).ListAllTablesName()
+	explr := explorer.(memdb.Explorer)
+	tables, err := explr.ListAllTablesName()
 	if err != nil {
 		gCtx.JSON(500, err)
 		return
 	}
 
+	recordCnts := make(map[string]uint64)
+	for _, tbl := range tables {
+		recordCnts[tbl], err = explr.CountRecords(tbl)
+		if err != nil {
+			gCtx.JSON(500, err)
+			return
+		}
+	}
+
 	gCtx.HTML(200,
 		"list_all_tables.html",
 		gin.H{
-			"tables": tables,
 			"title": "List all tables",
+			"tables": recordCnts,
 		},
 	)
 }

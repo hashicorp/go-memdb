@@ -9,3 +9,14 @@
         </span>
     {{ end }}
 </span>
+<span>
+    <select name="select-limit" id="select-limit">
+        {{ range $l := .limits }}
+            {{ if eq $l $.params.GetLimit }}
+                <option value="{{ $l }}" selected >{{ $l }}</option>
+            {{ else }}
+                <option value="{{ $l }}" >{{ $l }}</option>
+            {{ end }}
+        {{ end }}
+    </select>
+</span>

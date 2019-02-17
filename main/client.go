@@ -40,7 +40,7 @@ func main() {
 	// Create a write transaction
 	txn := db.Txn(true)
 
-	// Insert a new 100 persons
+	// Insert new 100 persons
 	var p *Person
 	var iStr string
 	for idx := int64(0); idx < 100; idx++ {

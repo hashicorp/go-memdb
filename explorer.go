@@ -1,8 +1,11 @@
 package memdb
 
+import "fmt"
+
 type Explorer interface {
 	ListAllTablesName() ([]string, error)
 	TableDataView(params TableDataViewParams) ([]interface{}, error)
+	CountRecords(table string) (uint64, error)
 }
 
 type explorer struct {
@@ -26,18 +29,23 @@ type Paginator interface {
 
 type TableDataViewParams interface {
 	GetTableName() string
-	GetIndexName() string
 	Paginator
 	//TODO: FilterFunc FilterFunc
 }
 
 func (ge *explorer) TableDataView(params TableDataViewParams) ([]interface{}, error) {
-	records := make([]interface{}, 0)
-	ri, err := ge.txn.Get(params.GetTableName(), params.GetIndexName())
+	table := params.GetTableName()
+	indexes, err := ge.getTableIndexes(table)
 	if err != nil {
 		return nil, err
 	}
 
+	ri, err := ge.txn.Get(table, indexes[0])
+	if err != nil {
+		return nil, err
+	}
+
+	records := make([]interface{}, 0)
 	limit, offset := params.GetLimit(), params.GetOffset()
 	count := uint64(0)
 	idx := uint64(0)
@@ -57,6 +65,39 @@ func (ge *explorer) TableDataView(params TableDataViewParams) ([]interface{}, er
 	}
 
 	return records, nil
+}
+
+func(ge *explorer) CountRecords(table string) (uint64, error) {
+	var recordCnt uint64 = 0
+	indexes, err := ge.getTableIndexes(table)
+	if err != nil {
+		return 0, err
+	}
+
+	ri, err := ge.txn.Get(table, indexes[0])
+	if err != nil {
+		return 0, err
+	}
+
+	for record := ri.Next(); record != nil; record = ri.Next() {
+		recordCnt ++
+	}
+
+	return recordCnt, nil
+}
+
+func(ge *explorer) getTableIndexes(table string) ([]string, error) {
+	schema, ok := ge.txn.db.schema.Tables[table]
+	if !ok {
+		return nil, fmt.Errorf("Invalid table")
+	}
+
+	indexes := make([]string, 0)
+	for idx, _ := range schema.Indexes {
+		indexes = append(indexes, idx)
+	}
+
+	return indexes, nil
 }
 
 func NewExplorer(txn *Txn) Explorer {

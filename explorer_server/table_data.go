@@ -8,9 +8,10 @@ import (
 	"strconv"
 )
 
+var limitValues []uint64 = []uint64{10, 50, 100, 200}
+
 type tableDataViewParams struct {
 	table string
-	index string
 	limit uint64
 	currentPage uint64
 	format string
@@ -19,7 +20,6 @@ type tableDataViewParams struct {
 func (p *tableDataViewParams) ToMap() map[string]interface{} {
 	return map[string]interface{}{
 		"table": p.table,
-		"index": p.index,
 		"limit": p.limit,
 		"page": p.currentPage,
 		"format": p.format,
@@ -28,10 +28,6 @@ func (p *tableDataViewParams) ToMap() map[string]interface{} {
 
 func (p *tableDataViewParams) GetTableName() string {
 	return p.table
-}
-
-func (p *tableDataViewParams) GetIndexName() string {
-	return p.index
 }
 
 func (p *tableDataViewParams) GetLimit() uint64 {
@@ -46,13 +42,13 @@ func (p *tableDataViewParams) GetCurrentPage() uint64 {
 	return p.currentPage
 }
 
-func (p *tableDataViewParams) getResponseFormat() string {
+func (p *tableDataViewParams) GetResponseFormat() string {
 	return p.format
 }
 
 func (p *tableDataViewParams) concatParamsToUrl() string {
-	return fmt.Sprintf("/data?table=%s&index=%s&limit=%d&format=%s",
-		p.table, p.index, p.limit, p.format)
+	return fmt.Sprintf("/data?table=%s&limit=%d&format=%s",
+		p.table, p.limit, p.format)
 }
 
 func paramsFromCtx(gCtx *gin.Context) *tableDataViewParams {
@@ -61,7 +57,6 @@ func paramsFromCtx(gCtx *gin.Context) *tableDataViewParams {
 
 	return &tableDataViewParams{
 		table: gCtx.Query("table"),
-		index: gCtx.DefaultQuery("index", "id"),
 		limit: limit,
 		currentPage: currentPage,
 		format: gCtx.DefaultQuery("format", "html"),
@@ -125,7 +120,7 @@ func TableDataViewHandler(gCtx *gin.Context) {
 	}
 
 	tables, _ := explorer.(memdb.Explorer).ListAllTablesName()
-	switch params.getResponseFormat() {
+	switch params.GetResponseFormat() {
 	case "json":
 		renderJson(gCtx, records, params)
 	case "html":
@@ -151,6 +146,8 @@ func renderHtml(c *gin.Context, records []interface{}, params *tableDataViewPara
 			"records": data,
 			"tables": tables,
 			"pages": paginator.BuildPaginationUrls(),
+			"params": params,
+			"limits":limitValues,
 		},
 	)
 }
