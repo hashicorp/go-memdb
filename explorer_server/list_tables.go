@@ -2,7 +2,6 @@ package explorer_server
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/manhdaovan/go-memdb"
 )
 
 func ListAllTablesHandler(gCtx *gin.Context) {
@@ -11,7 +10,7 @@ func ListAllTablesHandler(gCtx *gin.Context) {
 		gCtx.JSON(500, "explorer not set to gin context yet")
 		return
 	}
-	explr := explorer.(memdb.Explorer)
+	explr := explorer.(*explorerWrapper)
 	tables, err := explr.ListAllTablesName()
 	if err != nil {
 		gCtx.JSON(500, err)

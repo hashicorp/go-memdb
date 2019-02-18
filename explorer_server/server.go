@@ -6,8 +6,11 @@ import (
 )
 
 const GIN_CTX_EXPLORER = "explorer"
+type explorerWrapper struct {
+	memdb.Explorer
+}
 
-func SetExplorerToGinCtxHandler(explr memdb.Explorer) gin.HandlerFunc {
+func SetExplorerToGinCtxHandler(explr *explorerWrapper) gin.HandlerFunc {
 	return func(gCtx *gin.Context) {
 		gCtx.Set(GIN_CTX_EXPLORER, explr)
 	}
@@ -17,7 +20,8 @@ func NewServer(explr memdb.Explorer, assetsPath, templatesPath string) *gin.Engi
 	sv := gin.Default()
 	// Add handlers
 	sv.Use(InternalServerErrorHandler)
-	sv.Use(SetExplorerToGinCtxHandler(explr))
+	explrWrapper := explorerWrapper{explr}
+	sv.Use(SetExplorerToGinCtxHandler(&explrWrapper))
 
 	// Load views
 	sv.Static("/assets", assetsPath)

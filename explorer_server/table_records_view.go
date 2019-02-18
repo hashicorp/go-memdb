@@ -3,7 +3,6 @@ package explorer_server
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/manhdaovan/go-memdb"
 	"reflect"
 	"strconv"
 )
@@ -113,13 +112,13 @@ func TableRecordsViewHandler(gCtx *gin.Context) {
 	}
 
 	params := paramsFromCtx(gCtx)
-	records, err := explorer.(memdb.Explorer).TableRecordsView(params)
+	records, err := explorer.(*explorerWrapper).TableRecordsView(params)
 	if err != nil {
 		gCtx.JSON(500, err)
 		return
 	}
 
-	tables, _ := explorer.(memdb.Explorer).ListAllTablesName()
+	tables, _ := explorer.(*explorerWrapper).ListAllTablesName()
 	switch params.GetResponseFormat() {
 	case "json":
 		renderJson(gCtx, records, params)
