@@ -221,7 +221,7 @@ func Test_explorer_CountRecords(t *testing.T) {
 		t.Fatalf("should be no error %v", err)
 	}
 	existingRecordExplr := NewExplorer(txnExistingRecords)
-	got, err = existingRecordExplr.CountRecords("txnWithTableAndRecord")
+	got, err = existingRecordExplr.CountRecords("txnWithTableAndRecords")
 	if err != nil {
 		t.Fatalf("should be no error %v", err)
 	}
