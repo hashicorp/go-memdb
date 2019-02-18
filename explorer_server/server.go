@@ -13,15 +13,15 @@ func SetExplorerToGinCtxHandler(explr memdb.Explorer) gin.HandlerFunc {
 	}
 }
 
-func NewServer(explr memdb.Explorer) *gin.Engine {
+func NewServer(explr memdb.Explorer, assetsPath, templatesPath string) *gin.Engine {
 	sv := gin.Default()
 	// Add handlers
 	sv.Use(InternalServerErrorHandler)
 	sv.Use(SetExplorerToGinCtxHandler(explr))
 
 	// Load views
-	sv.Static("/assets", "../explorer_server/assets")
-	sv.LoadHTMLGlob("../explorer_server/templates/*")
+	sv.Static("/assets", assetsPath)
+	sv.LoadHTMLGlob(templatesPath)
 
 	// Add routes
 	sv.GET("/", ListAllTablesHandler)

@@ -56,6 +56,6 @@ func main() {
 
 	explorer := memdb.NewExplorer(db.Txn(false))
 
-	sv := explorer_server.NewServer(explorer)
+	sv := explorer_server.NewServer(explorer, "../explorer_server/assets", "../explorer_server/templates/*")
 	sv.Run(":8888")
 }
