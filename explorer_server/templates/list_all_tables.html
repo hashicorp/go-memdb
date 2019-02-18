@@ -1,5 +1,5 @@
 {{ template "header.html" . }}
-
+<h3>{{ .title }}</h3>
 <ul>
     {{ range $table, $recordCount := .tables }}
         <li><a href="/data?table={{ $table }}">{{ $table }} - {{ $recordCount }} record(s)</a></li>
