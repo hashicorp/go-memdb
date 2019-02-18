@@ -14,6 +14,7 @@ type Person struct {
 }
 
 func main() {
+	// Somewhere in your application
 	// Create the DB schema
 	schema := &memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
@@ -72,8 +73,8 @@ func main() {
 	// Commit the transaction
 	txn.Commit()
 
+	// And explorer starts here
 	explorer := memdb.NewExplorer(db.Txn(false))
-
 	sv := explorer_server.NewServer(explorer, "../explorer_server/assets", "../explorer_server/templates/*")
 	sv.Run(":8888")
 }
