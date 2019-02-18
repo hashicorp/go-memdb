@@ -1,9 +1,12 @@
-<select name="select-format" id="select-format">
-    {{ if eq $.params.GetResponseFormat "html" }}
-        <option value="html" selected >html</option>
-        <option value="json">json</option>
-    {{ else }}
-        <option value="html">html</option>
-        <option value="json">json</option>
-    {{ end }}
-</select>
+<span>Format:&nbsp;</span>
+<span>
+    <select name="select-format" id="select-format">
+        {{ if eq $.params.GetResponseFormat "html" }}
+            <option value="html" selected >html</option>
+            <option value="json">json</option>
+        {{ else }}
+            <option value="html">html</option>
+            <option value="json">json</option>
+        {{ end }}
+    </select>
+</span>

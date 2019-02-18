@@ -1,3 +1,43 @@
 .container {
-    background-color: red;
+    margin-left: 30px;
+}
+
+.table-container {
+    width: 100%;
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: -moz-box;
+    display: -ms-flexbox;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    padding: 33px 30px;
+    max-width: 1080px;
+}
+
+.table-data {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.table-data td, .table-data th {
+    border: 1px solid #ddd;
+    padding: 8px;
+}
+
+.table-data tr:nth-child(even){
+    background-color: #f2f2f2;
+}
+
+.table-data tr:hover {
+    background-color: #ddd;
+}
+
+.table-data th {
+    padding-top: 12px;
+    padding-bottom: 12px;
+    text-align: left;
+    background-color: black;
+    color: white;
 }

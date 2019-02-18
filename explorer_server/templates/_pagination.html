@@ -6,9 +6,10 @@
             {{else}}
                 {{ $p.PageNumber }}
             {{end}}
-        </span>
+        </span>&nbsp;
     {{ end }}
 </span>
+<span>Limit:&nbsp;</span>
 <span>
     <select name="select-limit" id="select-limit">
         {{ range $l := .limits }}

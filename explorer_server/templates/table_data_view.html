@@ -8,26 +8,29 @@
 {{ if eq (len .columns) 0 }}
     No data found.
 {{ else }}
-    <table>
-        <thead>
-            <tr>
-                {{ range .columns }}
-                    <td>{{ . }}</td>
-                {{ end }}
-            </tr>
-        </thead>
-        <tbody>
-            {{ range $rcd := .records }}
+    <div class="table-container">
+        <table class="table-data">
+            <thead>
                 <tr>
-                    {{ range $rcd }}
-                        <td>{{ . }}</td>
+                    {{ range .columns }}
+                        <th>{{ . }}</th>
                     {{ end }}
                 </tr>
-            {{ end }}
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                {{ range $rcd := .records }}
+                    <tr>
+                        {{ range $rcd }}
+                            <td>{{ . }}</td>
+                        {{ end }}
+                    </tr>
+                {{ end }}
+            </tbody>
+        </table>
+        <br/><br/>
+        {{ template "_pagination.html" . }}
+    </div>
 {{ end }}
 
-{{ template "_pagination.html" . }}
 
 {{ template "footer.html" . }}
