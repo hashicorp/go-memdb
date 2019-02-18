@@ -13,14 +13,32 @@ type Person struct {
 	Age   int
 }
 
-
-
 func main() {
 	// Create the DB schema
 	schema := &memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			"person": &memdb.TableSchema{
 				Name: "person",
+				Indexes: map[string]*memdb.IndexSchema{
+					"id": &memdb.IndexSchema{
+						Name:    "id",
+						Unique:  true,
+						Indexer: &memdb.StringFieldIndex{Field: "Email"},
+					},
+				},
+			},
+			"blog": &memdb.TableSchema{
+				Name: "blog",
+				Indexes: map[string]*memdb.IndexSchema{
+					"id": &memdb.IndexSchema{
+						Name:    "id",
+						Unique:  true,
+						Indexer: &memdb.StringFieldIndex{Field: "Email"},
+					},
+				},
+			},
+			"comment": &memdb.TableSchema{
+				Name: "comment",
 				Indexes: map[string]*memdb.IndexSchema{
 					"id": &memdb.IndexSchema{
 						Name:    "id",
