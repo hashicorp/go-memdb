@@ -25,7 +25,7 @@ func NewServer(explr memdb.Explorer) *gin.Engine {
 
 	// Add routes
 	sv.GET("/", ListAllTablesHandler)
-	sv.GET("/data", TableDataViewHandler)
+	sv.GET("/data", TableRecordsViewHandler)
 
 	return sv
 }

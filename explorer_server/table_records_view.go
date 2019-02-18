@@ -10,14 +10,14 @@ import (
 
 var limitValues []uint64 = []uint64{10, 50, 100, 200}
 
-type tableDataViewParams struct {
+type tableRecordsViewParams struct {
 	table       string
 	limit       uint64
 	currentPage uint64
 	format      string
 }
 
-func (p *tableDataViewParams) ToMap() map[string]interface{} {
+func (p *tableRecordsViewParams) ToMap() map[string]interface{} {
 	return map[string]interface{}{
 		"table":  p.table,
 		"limit":  p.limit,
@@ -26,36 +26,36 @@ func (p *tableDataViewParams) ToMap() map[string]interface{} {
 	}
 }
 
-func (p *tableDataViewParams) GetTableName() string {
+func (p *tableRecordsViewParams) GetTableName() string {
 	return p.table
 }
 
-func (p *tableDataViewParams) GetLimit() uint64 {
+func (p *tableRecordsViewParams) GetLimit() uint64 {
 	return p.limit
 }
 
-func (p *tableDataViewParams) GetOffset() uint64 {
+func (p *tableRecordsViewParams) GetOffset() uint64 {
 	return p.limit * (p.currentPage - 1)
 }
 
-func (p *tableDataViewParams) GetCurrentPage() uint64 {
+func (p *tableRecordsViewParams) GetCurrentPage() uint64 {
 	return p.currentPage
 }
 
-func (p *tableDataViewParams) GetResponseFormat() string {
+func (p *tableRecordsViewParams) GetResponseFormat() string {
 	return p.format
 }
 
-func (p *tableDataViewParams) concatParamsToUrl() string {
+func (p *tableRecordsViewParams) concatParamsToUrl() string {
 	return fmt.Sprintf("/data?table=%s&limit=%d&format=%s",
 		p.table, p.limit, p.format)
 }
 
-func paramsFromCtx(gCtx *gin.Context) *tableDataViewParams {
+func paramsFromCtx(gCtx *gin.Context) *tableRecordsViewParams {
 	limit, _ := strconv.ParseUint(gCtx.DefaultQuery("limit", "100"), 10, 64)
 	currentPage, _ := strconv.ParseUint(gCtx.DefaultQuery("page", "1"), 10, 64)
 
-	return &tableDataViewParams{
+	return &tableRecordsViewParams{
 		table:       gCtx.Query("table"),
 		limit:       limit,
 		currentPage: currentPage,
@@ -105,7 +105,7 @@ func formatTableData(records []interface{}) [][]interface{} {
 	return data
 }
 
-func TableDataViewHandler(gCtx *gin.Context) {
+func TableRecordsViewHandler(gCtx *gin.Context) {
 	explorer, ok := gCtx.Get(GIN_CTX_EXPLORER)
 	if !ok {
 		gCtx.JSON(500, "explorer not set to gin context yet")
@@ -113,7 +113,7 @@ func TableDataViewHandler(gCtx *gin.Context) {
 	}
 
 	params := paramsFromCtx(gCtx)
-	records, err := explorer.(memdb.Explorer).TableDataView(params)
+	records, err := explorer.(memdb.Explorer).TableRecordsView(params)
 	if err != nil {
 		gCtx.JSON(500, err)
 		return
@@ -130,7 +130,7 @@ func TableDataViewHandler(gCtx *gin.Context) {
 	}
 }
 
-func renderHtml(c *gin.Context, records []interface{}, params *tableDataViewParams, tables []string) {
+func renderHtml(c *gin.Context, records []interface{}, params *tableRecordsViewParams, tables []string) {
 	columns := extractTableColumn(records)
 	data := formatTableData(records)
 	paginator := paginator{
@@ -139,7 +139,7 @@ func renderHtml(c *gin.Context, records []interface{}, params *tableDataViewPara
 	}
 
 	c.HTML(200,
-		"table_data_view.html",
+		"table_records_view.html",
 		gin.H{
 			"title":   "Table Data: " + params.GetTableName(),
 			"columns": columns,
@@ -152,7 +152,7 @@ func renderHtml(c *gin.Context, records []interface{}, params *tableDataViewPara
 	)
 }
 
-func renderJson(c *gin.Context, records []interface{}, params *tableDataViewParams) {
+func renderJson(c *gin.Context, records []interface{}, params *tableRecordsViewParams) {
 	columns := extractTableColumn(records)
 
 	c.JSON(200, gin.H{

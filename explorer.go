@@ -2,9 +2,14 @@ package memdb
 
 import "fmt"
 
+// Explorer is used to view the data of database
+// via an instance of Tnx
 type Explorer interface {
+	// ListAllTablesName lists all table names in database schema
 	ListAllTablesName() ([]string, error)
-	TableDataView(params TableDataViewParams) ([]interface{}, error)
+	// TableDataView returns data of a table
+	TableRecordsView(params TableRecordsViewParams) ([]interface{}, error)
+	// CountRecords counts number records of given table
 	CountRecords(table string) (uint64, error)
 }
 
@@ -21,19 +26,27 @@ func (ge *explorer) ListAllTablesName() ([]string, error) {
 	return tablesName, nil
 }
 
+// Paginator is used to paginate data of a table
+// Limit and Offset have same meaning to
+// `SELECT column FROM table LIMIT limit OFFSET offset` in SQL
 type Paginator interface {
+	// GetLimit returns number of records per page
 	GetLimit() uint64
+	// GetCurrentPage returns current page of querying
 	GetCurrentPage() uint64
+	// GetOffset returns current offset of querying
 	GetOffset() uint64
 }
 
-type TableDataViewParams interface {
+// TableDataViewParams is used to get query parameters
+type TableRecordsViewParams interface {
+	// GetTableName returns table that will be queried to
 	GetTableName() string
 	Paginator
 	//TODO: FilterFunc FilterFunc
 }
 
-func (ge *explorer) TableDataView(params TableDataViewParams) ([]interface{}, error) {
+func (ge *explorer) TableRecordsView(params TableRecordsViewParams) ([]interface{}, error) {
 	table := params.GetTableName()
 	indexes, err := ge.getTableIndexes(table)
 	if err != nil {
@@ -86,6 +99,7 @@ func (ge *explorer) CountRecords(table string) (uint64, error) {
 	return recordCnt, nil
 }
 
+// getTableIndexes returns all index names of given table
 func (ge *explorer) getTableIndexes(table string) ([]string, error) {
 	schema, ok := ge.txn.db.schema.Tables[table]
 	if !ok {
@@ -100,6 +114,7 @@ func (ge *explorer) getTableIndexes(table string) ([]string, error) {
 	return indexes, nil
 }
 
+// NewExplorer inits new instance of Explorer
 func NewExplorer(txn *Txn) Explorer {
 	return &explorer{
 		txn: txn,
