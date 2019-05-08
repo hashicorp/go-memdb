@@ -239,6 +239,16 @@ func TestComplexDB(t *testing.T) {
 	if place.Name != "Maui" {
 		t.Fatalf("bad place (but isn't anywhere else really?): %v", place)
 	}
+
+	raw, err = txn.First("places", "name_tags", "HashiCorp", "San Francisco", "California")
+	noErr(t, err)
+	if raw == nil {
+		t.Fatalf("should get place")
+	}
+	place = raw.(*TestPlace)
+	if place.Name != "Maui" {
+		t.Fatalf("bad place (but isn't anywhere else really?): %v", place)
+	}
 }
 
 func TestWatchUpdate(t *testing.T) {
@@ -334,8 +344,10 @@ func testPopulateData(t *testing.T, db *MemDB) {
 	person3.Sibling = person1
 
 	place1 := testPlace()
+	place1.Tags = []string{"San Francisco", "California"}
 	place2 := testPlace()
 	place2.Name = "Maui"
+	place2.Tags = []string{"Hawai'i", "Island"}
 
 	visit1 := &TestVisit{person1.ID, place1.ID}
 	visit2 := &TestVisit{person2.ID, place2.ID}
@@ -353,7 +365,15 @@ func testPopulateData(t *testing.T, db *MemDB) {
 	txn.Commit()
 }
 
+func expectErr(t *testing.T, err error) {
+	t.Helper()
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
 func noErr(t *testing.T, err error) {
+	t.Helper()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -371,6 +391,8 @@ type TestPerson struct {
 type TestPlace struct {
 	ID   string
 	Name string
+	Tags []string
+	Meta map[string]string
 }
 
 type TestVisit struct {
@@ -428,6 +450,17 @@ func testComplexSchema() *DBSchema {
 						Name:    "name",
 						Unique:  true,
 						Indexer: &StringFieldIndex{Field: "Name"},
+					},
+					"name_tags": &IndexSchema{
+						Name:   "name_tags",
+						Unique: true,
+						//AllowMissing: true,
+						Indexer: &CompoundMultiIndex{
+							Indexes: []Indexer{
+								&StringFieldIndex{Field: "Name"},
+								&StringSliceFieldIndex{Field: "Tags"},
+							},
+						},
 					},
 				},
 			},

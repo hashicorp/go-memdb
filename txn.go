@@ -473,6 +473,7 @@ func (txn *Txn) FirstWatch(table, index string, args ...interface{}) (<-chan str
 	// Get the index itself
 	indexTxn := txn.readableIndex(table, indexSchema.Name)
 
+
 	// Do an exact lookup
 	if indexSchema.Unique && val != nil && indexSchema.Name == index {
 		watch, obj, ok := indexTxn.GetWatch(val)

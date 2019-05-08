@@ -3,6 +3,7 @@ package memdb
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -620,7 +621,7 @@ func (c *CompoundIndex) FromObject(raw interface{}) (bool, []byte, error) {
 
 func (c *CompoundIndex) FromArgs(args ...interface{}) ([]byte, error) {
 	if len(args) != len(c.Indexes) {
-		return nil, fmt.Errorf("less arguments than index fields")
+		return nil, fmt.Errorf("non-equivalent argument count and index fields")
 	}
 	var out []byte
 	for i, arg := range args {
@@ -658,4 +659,108 @@ func (c *CompoundIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
 		}
 	}
 	return out, nil
+}
+
+
+// CompoundMultiIndex is used to build an index using multiple
+// sub-indexes.
+//
+// Because only StringMapFieldIndexers can take a varying number of args,
+// it is currently a requirement that only one StringMapFieldIndexer can
+// be a part of the compound index, and it must be the last indexer in
+// the slice.
+//
+// Prefix-based indexing is not currently supported.
+type CompoundMultiIndex struct {
+	Indexes []Indexer
+
+	// AllowMissing results in an index based on only the indexers
+	// that return data. If true, you may end up with 2/3 columns
+	// indexed which might be useful for an index scan. Otherwise,
+	// the CompoundIndex requires all indexers to be satisfied.
+	AllowMissing bool
+}
+
+func (c *CompoundMultiIndex) FromObject(raw interface{}) (bool, [][]byte, error) {
+	if _, err := c.checkIndexValidity(); err != nil {
+		return false, nil, err
+	}
+
+	out := make([][]byte, 0, len(c.Indexes))
+	for i, idxRaw := range c.Indexes {
+		switch idx := idxRaw.(type) {
+		case SingleIndexer:
+			ok, val, err := idx.FromObject(raw)
+			if err != nil {
+				return false, nil, fmt.Errorf("sub-index %d error: %v", i, err)
+			}
+			if !ok {
+				if c.AllowMissing {
+					break
+				} else {
+					return false, nil, nil
+				}
+			}
+			out = append(out, val)
+
+		case MultiIndexer:
+			ok, vals, err := idx.FromObject(raw)
+			if err != nil {
+				return false, nil, fmt.Errorf("sub-index %d error: %v", i, err)
+			}
+			if !ok {
+				if c.AllowMissing {
+					break
+				} else {
+					return false, nil, nil
+				}
+			}
+			out = append(out, vals...)
+
+		default:
+			return false, nil, fmt.Errorf("sub-index %d does not satisfy either SingleIndexer or MultiIndexer", i)
+		}
+	}
+	return true, out, nil
+}
+
+func (c *CompoundMultiIndex) FromArgs(args ...interface{}) ([]byte, error) {
+	stringMapFound, err := c.checkIndexValidity()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(args) < len(c.Indexes) {
+		return nil, fmt.Errorf("less arguments than index fields")
+	}
+
+	var out []byte
+	for i := 0; i < len(args); i++ {
+		var val []byte
+		if i == len(args) - 1 && stringMapFound {
+			val, err = c.Indexes[i].FromArgs(args[i:])
+		} else {
+			val, err = c.Indexes[i].FromArgs(args[i])
+		}
+		if err != nil {
+			return nil, fmt.Errorf("sub-index %d error: %v", i, err)
+		}
+		out = append(out, val...)
+	}
+	return out, nil
+}
+
+// checkIndexValidity ensures that only the last index can be a
+// StringMapFieldIndex
+func (c *CompoundMultiIndex) checkIndexValidity() (bool, error) {
+	var found bool
+	for i, index := range c.Indexes {
+		if _, ok := index.(*StringMapFieldIndex); ok {
+			found = true
+			if i != len(c.Indexes)-1 {
+				return found, errors.New("invalid set of indexers supplied")
+			}
+		}
+	}
+	return found, nil
 }
