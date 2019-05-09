@@ -260,13 +260,23 @@ func TestComplexDB(t *testing.T) {
 		t.Fatalf("bad place (but isn't anywhere else really?): %v", place)
 	}
 
-	raw, err = txn.First("places", "name_tags_name_meta", "HashiCorp", "North America", "HashiCorp", "Food", nil)
+	raw, err = txn.First("places", "name_tags_name_meta", "HashiCorp", "North America", "HashiCorp", "Food", "Pretty Good")
 	noErr(t, err)
 	if raw == nil {
 		t.Fatalf("should get place")
 	}
 	place = raw.(*TestPlace)
 	if place.Tags[1] != "USA" {
+		t.Fatalf("bad place: %v", place)
+	}
+
+	raw, err = txn.First("places", "name_tags_name_meta", "HashiCorp", "North America", "HashiCorp", "Piers", "Pretty Salty")
+	noErr(t, err)
+	if raw == nil {
+		t.Fatalf("should get place")
+	}
+	place = raw.(*TestPlace)
+	if place.Tags[1] != "Earth" {
 		t.Fatalf("bad place: %v", place)
 	}
 }

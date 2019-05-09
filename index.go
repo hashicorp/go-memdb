@@ -196,6 +196,16 @@ func (s *StringSliceFieldIndex) PrefixFromArgs(args ...interface{}) ([]byte, err
 
 // StringMapFieldIndex is used to extract a field of type map[string]string
 // from an object using reflection and builds an index on that field.
+//
+// Note that although FromArgs in theory supports using either one or
+// two arguments, there is a bug: FromObject only creates an index
+// using key/value, and does not also create an index using key. This
+// means a lookup using one argument will never actually work.
+//
+// It is currently left as-is to prevent backwards compatibility
+// issues.
+//
+// TODO: Fix this in the next major bump.
 type StringMapFieldIndex struct {
 	Field     string
 	Lowercase bool
@@ -230,8 +240,6 @@ func (s *StringMapFieldIndex) FromObject(obj interface{}) (bool, [][]byte, error
 			val = strings.ToLower(val)
 		}
 
-		//vals = append(vals, []byte(k+"\x00"))
-
 		// Add the null character as a terminator
 		k += "\x00" + val + "\x00"
 
@@ -243,6 +251,8 @@ func (s *StringMapFieldIndex) FromObject(obj interface{}) (bool, [][]byte, error
 	return true, vals, nil
 }
 
+// WARNING: Because of a bug in FromObject, this function will never return
+// a value when using the single-argument version.
 func (s *StringMapFieldIndex) FromArgs(args ...interface{}) ([]byte, error) {
 	if len(args) > 2 || len(args) == 0 {
 		return nil, fmt.Errorf("must provide one or two arguments")
@@ -682,9 +692,12 @@ func (c *CompoundIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
 // and it is valid to do a lookup passing in only Foo as an argument.
 //
 // Because StringMapFieldIndexers can take a varying number of args,
-// it is currently a requirement that whenever a
-// is used, two arguments must _always_ be provided for it. If the
-// second argument is nil, it will be called with only one argument.
+// it is currently a requirement that whenever it is used, two
+// arguments must _always_ be provided for it. In theory we only
+// need one, except a bug in that indexer means the single-argument
+// version will never work. You can leave the second argument nil,
+// but it will never produce a value. We support this for whenever
+// that bug is fixed, likely in a next major version bump.
 //
 // Prefix-based indexing is not currently supported.
 type CompoundMultiIndex struct {
@@ -709,7 +722,7 @@ forloop:
 		case SingleIndexer:
 			ok, val, err := idx.FromObject(raw)
 			if err != nil {
-				return false, nil, fmt.Errorf("sub-index %d error: %v", i, err)
+				return false, nil, fmt.Errorf("single sub-index %d error: %v", i, err)
 			}
 			if !ok {
 				if c.AllowMissing {
@@ -723,7 +736,7 @@ forloop:
 		case MultiIndexer:
 			ok, vals, err := idx.FromObject(raw)
 			if err != nil {
-				return false, nil, fmt.Errorf("sub-index %d error: %v", i, err)
+				return false, nil, fmt.Errorf("multi sub-index %d error: %v", i, err)
 			}
 			if !ok {
 				if c.AllowMissing {
@@ -806,7 +819,7 @@ func (c *CompoundMultiIndex) FromArgs(args ...interface{}) ([]byte, error) {
 			if args[argCount+1] == nil {
 				val, err = idx.FromArgs(args[argCount])
 			} else {
-				val, err = idx.FromArgs(args[argCount : argCount+2])
+				val, err = idx.FromArgs(args[argCount : argCount+2]...)
 			}
 			argCount += 2
 		} else {
