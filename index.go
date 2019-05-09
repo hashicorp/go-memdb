@@ -3,12 +3,10 @@ package memdb
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
-	"log"
 	"reflect"
 	"strings"
-
-	"github.com/kr/pretty"
 )
 
 // Indexer is an interface used for defining indexes. Indexes are used
@@ -231,6 +229,8 @@ func (s *StringMapFieldIndex) FromObject(obj interface{}) (bool, [][]byte, error
 			k = strings.ToLower(k)
 			val = strings.ToLower(val)
 		}
+
+		//vals = append(vals, []byte(k+"\x00"))
 
 		// Add the null character as a terminator
 		k += "\x00" + val + "\x00"
@@ -672,6 +672,15 @@ func (c *CompoundIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
 // the number of indexes created under-the-hood. It is not suggested
 // to use more than one or two, if possible.
 //
+// Another change from CompoundIndexer is that if AllowMissing is
+// set, not only is it valid to have empty index fields, but it will
+// still create index values up to the first empty index. This means
+// that if you have a value with an empty field, rather than using a
+// prefix for lookup, you can simply pass in less arguments. As an
+// example, if {Foo, Bar} is indexed but Bar is missing for a value
+// and AllowMissing is set, an index will still be created for {Foo}
+// and it is valid to do a lookup passing in only Foo as an argument.
+//
 // Because StringMapFieldIndexers can take a varying number of args,
 // it is currently a requirement that whenever a
 // is used, two arguments must _always_ be provided for it. If the
@@ -689,107 +698,110 @@ type CompoundMultiIndex struct {
 }
 
 func (c *CompoundMultiIndex) FromObject(raw interface{}) (bool, [][]byte, error) {
+	// At each entry, builder is storing the results from the next index
+	builder := make([][][]byte, 0, len(c.Indexes))
 	// Start with something higher to avoid resizing if possible
-	log.Printf("compound multi fromobject raw: %s\n", pretty.Sprint(raw))
-	builder := make([][][]byte, 0, len(c.Indexes)^3)
-	swapper := make([][][]byte, 0, len(c.Indexes)^3)
-	var currLevel int
+	out := make([][]byte, 0, len(c.Indexes)^3)
 
 forloop:
 	for i, idxRaw := range c.Indexes {
 		switch idx := idxRaw.(type) {
 		case SingleIndexer:
 			ok, val, err := idx.FromObject(raw)
-			log.Printf("compound multi fromobject single got: %t, %s\n", ok, string(val))
 			if err != nil {
-				log.Printf("compound multi fromobject error in single")
 				return false, nil, fmt.Errorf("sub-index %d error: %v", i, err)
 			}
 			if !ok {
 				if c.AllowMissing {
 					break forloop
 				} else {
-					log.Printf("compound multi fromobject returning false in single")
 					return false, nil, nil
 				}
 			}
-			// Append this to each of the current returned indexes
-			if len(builder) == 0 {
-				builder = append(builder, [][]byte{val})
-				currLevel++
-			} else {
-				curr := len(builder[currLevel-1])
-				for i := 0; i < curr; i++ {
-						out[i] = append(out[i], val...)
-					}
-					log.Printf("multi fromobject single appending: %s, %s\n", string(val), string(out[i]))
-				}
-			}
+			builder = append(builder, [][]byte{val})
 
 		case MultiIndexer:
 			ok, vals, err := idx.FromObject(raw)
-			log.Printf("compound multi fromobject multi got: %t, %s\n", ok, pretty.Sprint(vals))
 			if err != nil {
-				log.Printf("compound multi fromobject error in multi")
 				return false, nil, fmt.Errorf("sub-index %d error: %v", i, err)
 			}
 			if !ok {
 				if c.AllowMissing {
 					break forloop
 				} else {
-					log.Printf("compound multi fromobject returning false in multi; %s", pretty.Sprint(c))
 					return false, nil, nil
 				}
 			}
 
 			// Add each of the new values to each of the old values
-			if len(out) == 0 {
-				out = append(out, vals...)
-				log.Printf("multi fromobject multi setting out to vals: %s\n", pretty.Sprint(vals))
-			} else {
-				for _, outVal := range out {
-					for _, newVal := range vals {
-						swapper = append(swapper, append(outVal, newVal...))
-						log.Printf("multi fromobject multi appending: %s\n", string(newVal))
-					}
-				}
-
-				// Switch the slice we're pointing to and then reslice to zero to avoid reallocations/copies
-				tmp := out
-				out = swapper
-				swapper = tmp[:0]
-			}
+			builder = append(builder, vals)
 
 		default:
-			log.Printf("compound multi fromobject error in default")
 			return false, nil, fmt.Errorf("sub-index %d does not satisfy either SingleIndexer or MultiIndexer", i)
 		}
 	}
-	for _, v := range out {
-		log.Printf("multi fromobject output: %s\n", string(v))
+
+	// Reconcile
+	var walkVals func([]byte, int)
+	walkVals = func(currPrefix []byte, depth int) {
+		if depth == len(builder)-1 {
+			// These are the "leaves", so append directly
+			for _, v := range builder[depth] {
+				out = append(out, append(currPrefix, v...))
+			}
+			return
+		}
+		for _, v := range builder[depth] {
+			nextPrefix := append(currPrefix, v...)
+			if c.AllowMissing {
+				out = append(out, nextPrefix)
+			}
+			walkVals(nextPrefix, depth+1)
+		}
 	}
+
+	walkVals(nil, 0)
+
 	return true, out, nil
 }
 
 func (c *CompoundMultiIndex) FromArgs(args ...interface{}) ([]byte, error) {
 	var stringMapCount int
+	var argCount int
 	for _, index := range c.Indexes {
 		if _, ok := index.(*StringMapFieldIndex); ok {
+			// We require pairs for StringMapFieldIndex, but only got one
+			if argCount+1 >= len(args) {
+				return nil, errors.New("invalid number of arguments")
+			}
 			stringMapCount++
+			argCount += 2
+		} else {
+			argCount++
 		}
 	}
+	argCount = 0
 
-	log.Printf("fromargs args: %s\n", pretty.Sprint(args))
+	switch c.AllowMissing {
+	case true:
+		if len(args) > len(c.Indexes)+stringMapCount {
+			return nil, errors.New("too many arguments")
+		}
 
-	if len(args) != len(c.Indexes)+stringMapCount {
-		return nil, fmt.Errorf("incorrect number of arguments")
+	default:
+		if len(args) != len(c.Indexes)+stringMapCount {
+			return nil, errors.New("number of arguments does not equal number of indexers")
+		}
 	}
 
 	var out []byte
 	var val []byte
-	var argCount int
 	var err error
 	for i, idx := range c.Indexes {
+		if argCount >= len(args) {
+			// We're done; should only hit this if AllowMissing
+			break
+		}
 		if _, ok := idx.(*StringMapFieldIndex); ok {
 			if args[argCount+1] == nil {
 				val, err = idx.FromArgs(args[argCount])
@@ -799,7 +811,6 @@ func (c *CompoundMultiIndex) FromArgs(args ...interface{}) ([]byte, error) {
 			argCount += 2
 		} else {
 			val, err = idx.FromArgs(args[argCount])
-			log.Printf("fromargs non string map field val: %s\n", string(val))
 			argCount++
 		}
 		if err != nil {
@@ -807,6 +818,5 @@ func (c *CompoundMultiIndex) FromArgs(args ...interface{}) ([]byte, error) {
 		}
 		out = append(out, val...)
 	}
-	log.Println(string(out))
 	return out, nil
 }

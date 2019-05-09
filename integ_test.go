@@ -240,7 +240,7 @@ func TestComplexDB(t *testing.T) {
 		t.Fatalf("bad place (but isn't anywhere else really?): %v", place)
 	}
 
-	raw, err = txn.First("places", "name_tags", "HashiCorp", "San Francisco")
+	raw, err = txn.First("places", "name_tags", "HashiCorp", "North America")
 	noErr(t, err)
 	if raw == nil {
 		t.Fatalf("should get place")
@@ -250,7 +250,7 @@ func TestComplexDB(t *testing.T) {
 		t.Fatalf("bad place (but isn't anywhere else really?): %v", place)
 	}
 
-	raw, err = txn.First("places", "name_tags", "Maui", "Hawai'i")
+	raw, err = txn.First("places", "name_tags", "Maui")
 	noErr(t, err)
 	if raw == nil {
 		t.Fatalf("should get place")
@@ -258,6 +258,16 @@ func TestComplexDB(t *testing.T) {
 	place = raw.(*TestPlace)
 	if place.Name != "Maui" {
 		t.Fatalf("bad place (but isn't anywhere else really?): %v", place)
+	}
+
+	raw, err = txn.First("places", "name_tags_name_meta", "HashiCorp", "North America", "HashiCorp", "Food", nil)
+	noErr(t, err)
+	if raw == nil {
+		t.Fatalf("should get place")
+	}
+	place = raw.(*TestPlace)
+	if place.Tags[1] != "USA" {
+		t.Fatalf("bad place: %v", place)
 	}
 }
 
@@ -354,10 +364,13 @@ func testPopulateData(t *testing.T, db *MemDB) {
 	person3.Sibling = person1
 
 	place1 := testPlace()
-	place1.Tags = []string{"San Francisco", "California"}
-	place1.Meta = map[string]string{"foo": "bar"}
+	place1.Tags = []string{"North America", "USA"}
+	place1.Meta = map[string]string{"Food": "Pretty Good"}
 	place2 := testPlace()
 	place2.Name = "Maui"
+	place3 := testPlace()
+	place3.Tags = []string{"North America", "Earth"}
+	place3.Meta = map[string]string{"Piers": "Pretty Salty"}
 
 	visit1 := &TestVisit{person1.ID, place1.ID}
 	visit2 := &TestVisit{person2.ID, place2.ID}
@@ -368,6 +381,7 @@ func testPopulateData(t *testing.T, db *MemDB) {
 	noErr(t, txn.Insert("people", person3))
 	noErr(t, txn.Insert("places", place1))
 	noErr(t, txn.Insert("places", place2))
+	noErr(t, txn.Insert("places", place3))
 	noErr(t, txn.Insert("visits", visit1))
 	noErr(t, txn.Insert("visits", visit2))
 
