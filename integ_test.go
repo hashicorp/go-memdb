@@ -240,7 +240,17 @@ func TestComplexDB(t *testing.T) {
 		t.Fatalf("bad place (but isn't anywhere else really?): %v", place)
 	}
 
-	raw, err = txn.First("places", "name_tags", "HashiCorp", "San Francisco", "California")
+	raw, err = txn.First("places", "name_tags", "HashiCorp", "San Francisco")
+	noErr(t, err)
+	if raw == nil {
+		t.Fatalf("should get place")
+	}
+	place = raw.(*TestPlace)
+	if place.Name != "HashiCorp" {
+		t.Fatalf("bad place (but isn't anywhere else really?): %v", place)
+	}
+
+	raw, err = txn.First("places", "name_tags", "Maui", "Hawai'i")
 	noErr(t, err)
 	if raw == nil {
 		t.Fatalf("should get place")
@@ -345,9 +355,9 @@ func testPopulateData(t *testing.T, db *MemDB) {
 
 	place1 := testPlace()
 	place1.Tags = []string{"San Francisco", "California"}
+	place1.Meta = map[string]string{"foo": "bar"}
 	place2 := testPlace()
 	place2.Name = "Maui"
-	place2.Tags = []string{"Hawai'i", "Island"}
 
 	visit1 := &TestVisit{person1.ID, place1.ID}
 	visit2 := &TestVisit{person2.ID, place2.ID}
@@ -452,13 +462,28 @@ func testComplexSchema() *DBSchema {
 						Indexer: &StringFieldIndex{Field: "Name"},
 					},
 					"name_tags": &IndexSchema{
-						Name:   "name_tags",
-						Unique: true,
-						//AllowMissing: true,
+						Name:         "name_tags",
+						Unique:       true,
+						AllowMissing: true,
 						Indexer: &CompoundMultiIndex{
+							AllowMissing: true,
 							Indexes: []Indexer{
 								&StringFieldIndex{Field: "Name"},
 								&StringSliceFieldIndex{Field: "Tags"},
+							},
+						},
+					},
+					"name_tags_name_meta": &IndexSchema{
+						Name:         "name_tags_name_meta",
+						Unique:       true,
+						AllowMissing: true,
+						Indexer: &CompoundMultiIndex{
+							AllowMissing: true,
+							Indexes: []Indexer{
+								&StringFieldIndex{Field: "Name"},
+								&StringSliceFieldIndex{Field: "Tags"},
+								&StringFieldIndex{Field: "Name"},
+								&StringMapFieldIndex{Field: "Meta"},
 							},
 						},
 					},
