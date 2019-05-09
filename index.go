@@ -3,7 +3,6 @@ package memdb
 import (
 	"encoding/binary"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -661,7 +660,6 @@ func (c *CompoundIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
 	return out, nil
 }
 
-
 // CompoundMultiIndex is used to build an index using multiple
 // sub-indexes.
 //
@@ -682,10 +680,6 @@ type CompoundMultiIndex struct {
 }
 
 func (c *CompoundMultiIndex) FromObject(raw interface{}) (bool, [][]byte, error) {
-	if _, err := c.checkIndexValidity(); err != nil {
-		return false, nil, err
-	}
-
 	out := make([][]byte, 0, len(c.Indexes))
 	for i, idxRaw := range c.Indexes {
 		switch idx := idxRaw.(type) {
@@ -725,22 +719,28 @@ func (c *CompoundMultiIndex) FromObject(raw interface{}) (bool, [][]byte, error)
 }
 
 func (c *CompoundMultiIndex) FromArgs(args ...interface{}) ([]byte, error) {
-	stringMapFound, err := c.checkIndexValidity()
-	if err != nil {
-		return nil, err
+	var stringMapCount int
+	for _, index := range c.Indexes {
+		if _, ok := index.(*StringMapFieldIndex); ok {
+			stringMapCount++
+		}
 	}
 
-	if len(args) < len(c.Indexes) {
-		return nil, fmt.Errorf("less arguments than index fields")
+	if len(args) != len(c.Indexes)+stringMapCount {
+		return nil, fmt.Errorf("incorrect number of arguments")
 	}
 
 	var out []byte
-	for i := 0; i < len(args); i++ {
-		var val []byte
-		if i == len(args) - 1 && stringMapFound {
-			val, err = c.Indexes[i].FromArgs(args[i:])
+	var val []byte
+	var argCount int
+	var err error
+	for i, idx := range c.Indexes {
+		if _, ok := idx.(*StringMapFieldIndex); ok {
+			val, err = idx.FromArgs(args[argCount : argCount+2])
+			argCount += 2
 		} else {
-			val, err = c.Indexes[i].FromArgs(args[i])
+			val, err = idx.FromArgs(args[argCount])
+			argCount++
 		}
 		if err != nil {
 			return nil, fmt.Errorf("sub-index %d error: %v", i, err)
@@ -748,19 +748,4 @@ func (c *CompoundMultiIndex) FromArgs(args ...interface{}) ([]byte, error) {
 		out = append(out, val...)
 	}
 	return out, nil
-}
-
-// checkIndexValidity ensures that only the last index can be a
-// StringMapFieldIndex
-func (c *CompoundMultiIndex) checkIndexValidity() (bool, error) {
-	var found bool
-	for i, index := range c.Indexes {
-		if _, ok := index.(*StringMapFieldIndex); ok {
-			found = true
-			if i != len(c.Indexes)-1 {
-				return found, errors.New("invalid set of indexers supplied")
-			}
-		}
-	}
-	return found, nil
 }
