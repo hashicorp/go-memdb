@@ -690,6 +690,9 @@ func (c *CompoundIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
 // example, if {Foo, Bar} is indexed but Bar is missing for a value
 // and AllowMissing is set, an index will still be created for {Foo}
 // and it is valid to do a lookup passing in only Foo as an argument.
+// Note that the ordering isn't guaranteed -- it's last-insert wins,
+// but this is true if you have two objects that have the same
+// indexes not using AllowMissing anyways.
 //
 // Because StringMapFieldIndexers can take a varying number of args,
 // it is currently a requirement that whenever it is used, two
@@ -717,6 +720,8 @@ func (c *CompoundMultiIndex) FromObject(raw interface{}) (bool, [][]byte, error)
 	out := make([][]byte, 0, len(c.Indexes)^3)
 
 forloop:
+	// This loop goes through each indexer and adds the value(s) provided to the next
+	// entry in the slice. We can then later walk it like a tree to construct the indices.
 	for i, idxRaw := range c.Indexes {
 		switch idx := idxRaw.(type) {
 		case SingleIndexer:
@@ -754,7 +759,12 @@ forloop:
 		}
 	}
 
-	// Reconcile
+	// We are walking through the builder slice essentially in a depth-first fashion,
+	// building the prefix and leaves as we go. If AllowMissing is false, we only insert
+	// these full paths to leaves. Otherwise, we also insert each prefix along the way.
+	// This allows for lookup in FromArgs when AllowMissing is true that does not contain
+	// the full set of arguments. e.g. for {Foo, Bar} where an object has only the Foo
+	// field specified as "abc", is is valid to call FromArgs with just "abc".
 	var walkVals func([]byte, int)
 	walkVals = func(currPrefix []byte, depth int) {
 		if depth == len(builder)-1 {
@@ -782,6 +792,9 @@ func (c *CompoundMultiIndex) FromArgs(args ...interface{}) ([]byte, error) {
 	var stringMapCount int
 	var argCount int
 	for _, index := range c.Indexes {
+		if argCount >= len(args) {
+			break
+		}
 		if _, ok := index.(*StringMapFieldIndex); ok {
 			// We require pairs for StringMapFieldIndex, but only got one
 			if argCount+1 >= len(args) {
