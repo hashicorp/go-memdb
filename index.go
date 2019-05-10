@@ -764,7 +764,7 @@ forloop:
 	// these full paths to leaves. Otherwise, we also insert each prefix along the way.
 	// This allows for lookup in FromArgs when AllowMissing is true that does not contain
 	// the full set of arguments. e.g. for {Foo, Bar} where an object has only the Foo
-	// field specified as "abc", is is valid to call FromArgs with just "abc".
+	// field specified as "abc", it is valid to call FromArgs with just "abc".
 	var walkVals func([]byte, int)
 	walkVals = func(currPrefix []byte, depth int) {
 		if depth == len(builder)-1 {
