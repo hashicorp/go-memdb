@@ -331,7 +331,7 @@ func TestStringMapFieldIndex_FromObject(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	if len(vals) != 2 {
-		t.Fatal("bad result length")
+		t.Fatalf("bad result length of %d", len(vals))
 	}
 	if string(vals[0]) != "Role\x00Server\x00" {
 		t.Fatalf("bad: %s", vals[0])
