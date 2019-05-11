@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"unsafe"
 
-	"github.com/hashicorp/go-immutable-radix"
+	iradix "github.com/hashicorp/go-immutable-radix"
 )
 
 const (
@@ -611,6 +611,36 @@ func (txn *Txn) Get(table, index string, args ...interface{}) (ResultIterator, e
 	iter := &radixIterator{
 		iter:    indexIter,
 		watchCh: watchCh,
+	}
+	return iter, nil
+}
+
+// LowerBound is used to construct a ResultIterator over all the the range of
+// rows that have an index value greater than or equal to the provide args.
+// Calling this then iterating until the rows are larger than required allows
+// range scans within an index. It is not possible to watch the resulting
+// iterator since the radix tree doesn't efficiently allow watching on lower
+// bound changes. The WatchCh returned will be nill and so will block forever.
+func (txn *Txn) LowerBound(table, index string, args ...interface{}) (ResultIterator, error) {
+	// Get the index value to scan
+	indexSchema, val, err := txn.getIndexValue(table, index, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the index itself
+	indexTxn := txn.readableIndex(table, indexSchema.Name)
+	indexRoot := indexTxn.Root()
+
+	// Get an interator over the index
+	indexIter := indexRoot.Iterator()
+
+	// Seek the iterator to the appropriate sub-set
+	indexIter.SeekLowerBound(val)
+
+	// Create an iterator
+	iter := &radixIterator{
+		iter: indexIter,
 	}
 	return iter, nil
 }
