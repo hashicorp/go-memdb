@@ -591,18 +591,10 @@ type ResultIterator interface {
 // Get is used to construct a ResultIterator over all the
 // rows that match the given constraints of an index.
 func (txn *Txn) Get(table, index string, args ...interface{}) (ResultIterator, error) {
-	// Get the index value to scan
-	indexSchema, val, err := txn.getIndexValue(table, index, args...)
+	indexIter, val, err := txn.getIndexIterator(table, index, args...)
 	if err != nil {
 		return nil, err
 	}
-
-	// Get the index itself
-	indexTxn := txn.readableIndex(table, indexSchema.Name)
-	indexRoot := indexTxn.Root()
-
-	// Get an interator over the index
-	indexIter := indexRoot.Iterator()
 
 	// Seek the iterator to the appropriate sub-set
 	watchCh := indexIter.SeekPrefixWatch(val)
@@ -622,18 +614,10 @@ func (txn *Txn) Get(table, index string, args ...interface{}) (ResultIterator, e
 // iterator since the radix tree doesn't efficiently allow watching on lower
 // bound changes. The WatchCh returned will be nill and so will block forever.
 func (txn *Txn) LowerBound(table, index string, args ...interface{}) (ResultIterator, error) {
-	// Get the index value to scan
-	indexSchema, val, err := txn.getIndexValue(table, index, args...)
+	indexIter, val, err := txn.getIndexIterator(table, index, args...)
 	if err != nil {
 		return nil, err
 	}
-
-	// Get the index itself
-	indexTxn := txn.readableIndex(table, indexSchema.Name)
-	indexRoot := indexTxn.Root()
-
-	// Get an interator over the index
-	indexIter := indexRoot.Iterator()
 
 	// Seek the iterator to the appropriate sub-set
 	indexIter.SeekLowerBound(val)
@@ -643,6 +627,22 @@ func (txn *Txn) LowerBound(table, index string, args ...interface{}) (ResultIter
 		iter: indexIter,
 	}
 	return iter, nil
+}
+
+func (txn *Txn) getIndexIterator(table, index string, args ...interface{}) (*iradix.Iterator, []byte, error) {
+	// Get the index value to scan
+	indexSchema, val, err := txn.getIndexValue(table, index, args...)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Get the index itself
+	indexTxn := txn.readableIndex(table, indexSchema.Name)
+	indexRoot := indexTxn.Root()
+
+	// Get an interator over the index
+	indexIter := indexRoot.Iterator()
+	return indexIter, val, nil
 }
 
 // Defer is used to push a new arbitrary function onto a stack which
