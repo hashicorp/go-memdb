@@ -377,6 +377,133 @@ func TestStringMapFieldIndex_FromObject(t *testing.T) {
 	}
 }
 
+func TestNestedStringFieldIndex_FromObject(t *testing.T) {
+	obj := testObj()
+	indexer := NestedStringFieldIndex{"Foo", false}
+
+	ok, val, err := indexer.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "Testing\x00" {
+		t.Fatalf("bad: %s", val)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+
+	lower := NestedStringFieldIndex{"Foo", true}
+	ok, val, err = lower.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "testing\x00" {
+		t.Fatalf("bad: %s", val)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+
+	badField := NestedStringFieldIndex{"NA", true}
+	ok, val, err = badField.FromObject(obj)
+	if err == nil {
+		t.Fatalf("should get error")
+	}
+
+	emptyField := NestedStringFieldIndex{"Empty", true}
+	ok, val, err = emptyField.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if ok {
+		t.Fatalf("should not ok")
+	}
+
+	pointerField := NestedStringFieldIndex{"Fu", false}
+	ok, val, err = pointerField.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "Fu\x00" {
+		t.Fatalf("bad: %s", val)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+
+	pointerField = NestedStringFieldIndex{"Boo", false}
+	ok, val, err = pointerField.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "" {
+		t.Fatalf("bad: %s", val)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+}
+
+func TestNestedStringFieldIndex_FromArgs(t *testing.T) {
+	indexer := NestedStringFieldIndex{"Foo", false}
+	_, err := indexer.FromArgs()
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	_, err = indexer.FromArgs(42)
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	val, err := indexer.FromArgs("foo")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "foo\x00" {
+		t.Fatalf("foo")
+	}
+
+	lower := NestedStringFieldIndex{"Foo", true}
+	val, err = lower.FromArgs("Foo")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "foo\x00" {
+		t.Fatalf("foo")
+	}
+}
+
+func TestNestedStringFieldIndex_PrefixFromArgs(t *testing.T) {
+	indexer := NestedStringFieldIndex{"Foo", false}
+	_, err := indexer.FromArgs()
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	_, err = indexer.PrefixFromArgs(42)
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	val, err := indexer.PrefixFromArgs("foo")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "foo" {
+		t.Fatalf("foo")
+	}
+
+	lower := NestedStringFieldIndex{"Foo", true}
+	val, err = lower.PrefixFromArgs("Foo")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "foo" {
+		t.Fatalf("foo")
+	}
+}
+
 func TestStringMapFieldIndex_FromArgs(t *testing.T) {
 	indexer := StringMapFieldIndex{"Zod", false}
 	_, err := indexer.FromArgs()

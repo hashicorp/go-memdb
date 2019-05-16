@@ -282,6 +282,85 @@ func (s *StringMapFieldIndex) FromArgs(args ...interface{}) ([]byte, error) {
 	return []byte(key), nil
 }
 
+// NestedStringFieldIndex is used to extract a nested field from an object
+// using reflection and builds an index on that field.
+type NestedStringFieldIndex struct {
+	Field     string
+	Lowercase bool
+}
+
+func (s *NestedStringFieldIndex) FromObject(obj interface{}) (bool, []byte, error) {
+	var val string
+	var v, fv reflect.Value
+	fieldTokens := strings.Split(s.Field, ".")
+	objPivot := obj
+
+	// Traverse object to the correct field level
+	for _, field := range fieldTokens {
+		v = reflect.ValueOf(objPivot)
+		v = reflect.Indirect(v) // Dereference the pointer if any
+		fv = v.FieldByName(field)
+
+		isPtr := fv.Kind() == reflect.Ptr
+		fv = reflect.Indirect(fv)
+		if !isPtr && !fv.IsValid() {
+			return false, nil,
+				fmt.Errorf("field '%s' for %#v is invalid %v ", s.Field, objPivot, isPtr)
+		}
+
+		if isPtr && !fv.IsValid() {
+			val := ""
+			return true, []byte(val), nil
+		}
+
+		objPivot = v.Interface()
+	}
+
+	val = fv.String()
+	if val == "" {
+		return false, nil, nil
+	}
+
+	if s.Lowercase {
+		val = strings.ToLower(val)
+	}
+
+	// Add the null character as a terminator
+	val += "\x00"
+
+	return true, []byte(val), nil
+}
+
+func (s *NestedStringFieldIndex) FromArgs(args ...interface{}) ([]byte, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("must provide only a single argument")
+	}
+	arg, ok := args[0].(string)
+	if !ok {
+		return nil, fmt.Errorf("argument must be a string: %#v", args[0])
+	}
+	if s.Lowercase {
+		arg = strings.ToLower(arg)
+	}
+	// Add the null character as a terminator
+	arg += "\x00"
+	return []byte(arg), nil
+}
+
+func (s *NestedStringFieldIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+	val, err := s.FromArgs(args...)
+	if err != nil {
+		return nil, err
+	}
+
+	// Strip the null terminator, the rest is a prefix
+	n := len(val)
+	if n > 0 {
+		return val[:n-1], nil
+	}
+	return val, nil
+}
+
 // IntFieldIndex is used to extract an int field from an object using
 // reflection and builds an index on that field.
 type IntFieldIndex struct {
