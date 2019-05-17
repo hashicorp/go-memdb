@@ -284,6 +284,10 @@ func (s *StringMapFieldIndex) FromArgs(args ...interface{}) ([]byte, error) {
 
 // NestedStringFieldIndex is used to extract a nested field from an object
 // using reflection and builds an index on that field.
+//
+// Note that while semantically it is the same as StringFieldIndex, the
+// object traversal makes it slower performance-wise thus being a separate
+// index implementation.
 type NestedStringFieldIndex struct {
 	Field     string
 	Lowercase bool
@@ -296,7 +300,7 @@ func (s *NestedStringFieldIndex) FromObject(obj interface{}) (bool, []byte, erro
 	objPivot := obj
 
 	// Traverse object to the correct field level
-	for _, field := range fieldTokens {
+	for i, field := range fieldTokens {
 		v = reflect.ValueOf(objPivot)
 		v = reflect.Indirect(v) // Dereference the pointer if any
 		fv = v.FieldByName(field)
@@ -305,7 +309,10 @@ func (s *NestedStringFieldIndex) FromObject(obj interface{}) (bool, []byte, erro
 		fv = reflect.Indirect(fv)
 		if !isPtr && !fv.IsValid() {
 			return false, nil,
-				fmt.Errorf("field '%s' for %#v is invalid %v ", s.Field, objPivot, isPtr)
+				fmt.Errorf("field '%s' for %#v is invalid %v ",
+					strings.Join(fieldTokens[:i], "."),
+					objPivot,
+					isPtr)
 		}
 
 		if isPtr && !fv.IsValid() {
@@ -313,7 +320,7 @@ func (s *NestedStringFieldIndex) FromObject(obj interface{}) (bool, []byte, erro
 			return true, []byte(val), nil
 		}
 
-		objPivot = v.Interface()
+		objPivot = fv.Interface()
 	}
 
 	val = fv.String()
