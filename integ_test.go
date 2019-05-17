@@ -216,14 +216,14 @@ func TestComplexDB(t *testing.T) {
 		t.Fatalf("should get person")
 	}
 
-	raw, err = txn.First("people", "sibling_name", "Alex")
+	raw, err = txn.First("people", "sibling_first", "Alex")
 	noErr(t, err)
 	if raw == nil {
 		t.Fatalf("should get person")
 	}
 
 	person = raw.(*TestPerson)
-	if person.First != "Mitchell" {
+	if person.First != "Armon" {
 		t.Fatalf("wrong person!")
 	}
 
@@ -476,10 +476,10 @@ func testComplexSchema() *DBSchema {
 						Unique:  false,
 						Indexer: &FieldSetIndex{Field: "Sibling"},
 					},
-					"sibling_name": &IndexSchema{
-						Name:    "sibling_name",
+					"sibling_first": &IndexSchema{
+						Name:    "sibling_first",
 						Unique:  false,
-						Indexer: &NestedStringFieldIndex{Field: "Sibling.Name"},
+						Indexer: &NestedStringFieldIndex{Field: "Sibling.First"},
 					},
 				},
 			},

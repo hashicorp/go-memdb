@@ -311,6 +311,7 @@ func (s *NestedStringFieldIndex) FromObject(obj interface{}) (bool, []byte, erro
 		v = reflect.Indirect(v) // Dereference the pointer if any
 		fv = v.FieldByName(field)
 
+		// Validation checks
 		isPtr := fv.Kind() == reflect.Ptr
 		fv = reflect.Indirect(fv)
 		if !isPtr && !fv.IsValid() {
