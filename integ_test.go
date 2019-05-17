@@ -209,6 +209,17 @@ func TestComplexDB(t *testing.T) {
 		t.Fatalf("wrong person!")
 	}
 
+	raw, err = txn.First("people", "sibling_first", "Alex")
+	noErr(t, err)
+	if raw == nil {
+		t.Fatalf("should get person")
+	}
+
+	person = raw.(*TestPerson)
+	if person.First != "Armon" {
+		t.Fatalf("wrong person!")
+	}
+
 	// Where in the world is mitchell hashimoto?
 	raw, err = txn.First("people", "name_prefix", "Mitchell")
 	noErr(t, err)
@@ -218,17 +229,6 @@ func TestComplexDB(t *testing.T) {
 
 	person = raw.(*TestPerson)
 	if person.First != "Mitchell" {
-		t.Fatalf("wrong person!")
-	}
-
-	raw, err = txn.First("people", "sibling_first", "Alex")
-	noErr(t, err)
-	if raw == nil {
-		t.Fatalf("should get person")
-	}
-
-	person = raw.(*TestPerson)
-	if person.First != "Armon" {
 		t.Fatalf("wrong person!")
 	}
 
