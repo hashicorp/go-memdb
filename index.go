@@ -298,10 +298,16 @@ func (s *NestedStringFieldIndex) FromObject(obj interface{}) (bool, []byte, erro
 	var v, fv reflect.Value
 	fieldTokens := strings.Split(s.Field, ".")
 	objPivot := obj
+	visited := map[reflect.Value]struct{}{}
 
 	// Traverse object to the correct field level
 	for i, field := range fieldTokens {
 		v = reflect.ValueOf(objPivot)
+		if _, ok := visited[v]; ok {
+			// Break object cycles
+			break
+		}
+		visited[v] = struct{}{}
 		v = reflect.Indirect(v) // Dereference the pointer if any
 		fv = v.FieldByName(field)
 
@@ -310,7 +316,7 @@ func (s *NestedStringFieldIndex) FromObject(obj interface{}) (bool, []byte, erro
 		if !isPtr && !fv.IsValid() {
 			return false, nil,
 				fmt.Errorf("field '%s' for %#v is invalid %v ",
-					strings.Join(fieldTokens[:i], "."),
+					strings.Join(fieldTokens[:i+1], "."),
 					objPivot,
 					isPtr)
 		}
