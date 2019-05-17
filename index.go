@@ -315,7 +315,7 @@ func (s *NestedStringFieldIndex) FromObject(obj interface{}) (bool, []byte, erro
 		fv = reflect.Indirect(fv)
 		if !isPtr && !fv.IsValid() {
 			return false, nil,
-				fmt.Errorf("field '%s' for %#v is invalid %v ",
+				fmt.Errorf("field '%s' for %#v is invalid (isPtr:%v) ",
 					strings.Join(fieldTokens[:i+1], "."),
 					objPivot,
 					isPtr)
