@@ -11,28 +11,30 @@ import (
 )
 
 type TestObject struct {
-	ID       string
-	Foo      string
-	Fu       *string
-	Boo      *string
-	Bar      int
-	Baz      string
-	Bam      *bool
-	Empty    string
-	Qux      []string
-	QuxEmpty []string
-	Zod      map[string]string
-	ZodEmpty map[string]string
-	Int      int
-	Int8     int8
-	Int16    int16
-	Int32    int32
-	Int64    int64
-	Uint     uint
-	Uint8    uint8
-	Uint16   uint16
-	Uint32   uint32
-	Uint64   uint64
+	ID          string
+	Foo         string
+	Fu          *string
+	Boo         *string
+	Bar         int
+	Baz         string
+	Bam         *bool
+	Empty       string
+	Qux         []string
+	Quxint      []int
+	QuxEmpty    []string
+	QuxintEmpty []int
+	Zod         map[string]string
+	ZodEmpty    map[string]string
+	Int         int
+	Int8        int8
+	Int16       int16
+	Int32       int32
+	Int64       int64
+	Uint        uint
+	Uint8       uint8
+	Uint16      uint16
+	Uint32      uint32
+	Uint64      uint64
 }
 
 func String(s string) *string {
@@ -42,14 +44,15 @@ func String(s string) *string {
 func testObj() *TestObject {
 	b := true
 	obj := &TestObject{
-		ID:  "my-cool-obj",
-		Foo: "Testing",
-		Fu:  String("Fu"),
-		Boo: nil,
-		Bar: 42,
-		Baz: "yep",
-		Bam: &b,
-		Qux: []string{"Test", "Test2"},
+		ID:     "my-cool-obj",
+		Foo:    "Testing",
+		Fu:     String("Fu"),
+		Boo:    nil,
+		Bar:    42,
+		Baz:    "yep",
+		Bam:    &b,
+		Qux:    []string{"Test", "Test2"},
+		Quxint: []int{42, 44, 43},
 		Zod: map[string]string{
 			"Role":          "Server",
 			"instance_type": "m3.medium",
@@ -404,6 +407,89 @@ func TestStringMapFieldIndex_FromArgs(t *testing.T) {
 	}
 	if string(val) != "role\x00server\x00" {
 		t.Fatalf("bad: %v", string(val))
+	}
+}
+
+func TestIntSliceFieldIndex_FromObject(t *testing.T) {
+	obj := testObj()
+
+	indexer := IntSliceFieldIndex{"Quxint"}
+	ok, vals, err := indexer.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(vals) != 3 {
+		t.Fatal("bad result length")
+	}
+	valsInt := binary.LittleEndian.Uint32(vals[0])
+	if valsInt != 42 {
+		t.Fatalf("bad: %v", valsInt)
+	}
+	valsInt = binary.LittleEndian.Uint32(vals[1])
+	if valsInt != 44 {
+		t.Fatalf("bad: %vs", valsInt)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+
+	badField := IntSliceFieldIndex{"NA"}
+	ok, vals, err = badField.FromObject(obj)
+	if err == nil {
+		t.Fatalf("should get error")
+	}
+
+	emptyField := IntSliceFieldIndex{"QuxintEmpty"}
+	ok, _, err = emptyField.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if ok {
+		t.Fatalf("should not ok")
+	}
+}
+
+func TestIntSliceFieldIndex_FromArgs(t *testing.T) {
+	indexer := IntSliceFieldIndex{"Quxint"}
+	_, err := indexer.FromArgs()
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	_, err = indexer.FromArgs("42")
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	val, err := indexer.FromArgs(42)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	valInt := binary.LittleEndian.Uint32(val)
+	if valInt != 42 {
+		t.Fatalf("expected 42")
+	}
+}
+
+func TestIntSliceFieldIndex_PrefixFromArgs(t *testing.T) {
+	indexer := IntSliceFieldIndex{"Quxint"}
+	_, err := indexer.FromArgs()
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	_, err = indexer.PrefixFromArgs("foo")
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	val, err := indexer.PrefixFromArgs(42)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	valInt := binary.LittleEndian.Uint32(val)
+	if valInt != 42 {
+		t.Fatalf("expected 42")
 	}
 }
 
