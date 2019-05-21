@@ -485,14 +485,6 @@ func (i *IntSliceFieldIndex) FromArgs(args ...interface{}) ([]byte, error) {
 	return buf, nil
 }
 
-func (s *IntSliceFieldIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
-	val, err := s.FromArgs(args...)
-	if err != nil {
-		return nil, err
-	}
-	return val, nil
-}
-
 // UUIDFieldIndex is used to extract a field from an object
 // using reflection and builds an index on that field by treating
 // it as a UUID. This is an optimization to using a StringFieldIndex
