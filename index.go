@@ -309,6 +309,16 @@ func (s *NestedStringFieldIndex) FromObject(obj interface{}) (bool, []byte, erro
 		}
 		visited[v] = struct{}{}
 		v = reflect.Indirect(v) // Dereference the pointer if any
+
+		// Slices are not supported
+		if v.Kind() == reflect.Slice || v.Kind() == reflect.Array {
+			return false, nil,
+				fmt.Errorf("field '%s' for %#v is invalid (isSlice/isArray:%v) ",
+					strings.Join(fieldTokens[:i+1], "."),
+					v,
+					true)
+		}
+
 		fv = v.FieldByName(field)
 
 		// Validation checks

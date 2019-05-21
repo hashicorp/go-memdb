@@ -51,6 +51,7 @@ type C struct {
 
 type Nested struct {
 	A        A
+	ASlice   []A
 	ID       string
 	Foo      string
 	Fu       *string
@@ -153,6 +154,50 @@ func testNested() *Nested {
 				},
 				CPtr: &C{
 					IDC: "C",
+				},
+			},
+		},
+		ASlice: []A{
+			A{
+				IDA: "A1",
+				B: B{
+					IDB: "B",
+					C: C{
+						IDC: "C",
+					},
+					CPtr: &C{
+						IDC: "C",
+					},
+				},
+				BPtr: &B{
+					IDB: "B",
+					C: C{
+						IDC: "C",
+					},
+					CPtr: &C{
+						IDC: "C",
+					},
+				},
+			},
+			A{
+				IDA: "A2",
+				B: B{
+					IDB: "B",
+					C: C{
+						IDC: "C",
+					},
+					CPtr: &C{
+						IDC: "C",
+					},
+				},
+				BPtr: &B{
+					IDB: "B",
+					C: C{
+						IDC: "C",
+					},
+					CPtr: &C{
+						IDC: "C",
+					},
 				},
 			},
 		},
@@ -553,6 +598,12 @@ func TestNestedStringFieldIndex_FromObject(t *testing.T) {
 	}
 	if !ok {
 		t.Fatalf("should be ok")
+	}
+
+	innerSlice := NestedStringFieldIndex{"ASlice.IDA", true}
+	ok, val, err = innerSlice.FromObject(obj)
+	if err == nil {
+		t.Fatalf("should get error")
 	}
 
 	badField := NestedStringFieldIndex{"NA", true}
