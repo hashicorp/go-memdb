@@ -471,28 +471,6 @@ func TestIntSliceFieldIndex_FromArgs(t *testing.T) {
 	}
 }
 
-func TestIntSliceFieldIndex_PrefixFromArgs(t *testing.T) {
-	indexer := IntSliceFieldIndex{"Quxint"}
-	_, err := indexer.FromArgs()
-	if err == nil {
-		t.Fatalf("should get err")
-	}
-
-	_, err = indexer.PrefixFromArgs("foo")
-	if err == nil {
-		t.Fatalf("should get err")
-	}
-
-	val, err := indexer.PrefixFromArgs(42)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	valInt := binary.LittleEndian.Uint32(val)
-	if valInt != 42 {
-		t.Fatalf("expected 42")
-	}
-}
-
 func TestUUIDFeldIndex_parseString(t *testing.T) {
 	u := &UUIDFieldIndex{}
 	_, err := u.parseString("invalid", true)
