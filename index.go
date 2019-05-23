@@ -452,7 +452,11 @@ func (s *IntSliceFieldIndex) FromObject(obj interface{}) (bool, [][]byte, error)
 	length := fv.Len()
 	vals := make([][]byte, 0, length)
 	for i := 0; i < fv.Len(); i++ {
-		buf := make([]byte, 4)
+		size, ok := IsIntType(fv.Index(i).Kind())
+		if !ok {
+			return false, nil, fmt.Errorf("arg is of type %v; want an int", fv.Index(i))
+		}
+		buf := make([]byte, size)
 		binary.LittleEndian.PutUint32(buf, uint32(fv.Index(i).Int()))
 		vals = append(vals, buf)
 	}
@@ -475,7 +479,7 @@ func (i *IntSliceFieldIndex) FromArgs(args ...interface{}) ([]byte, error) {
 	k := v.Kind()
 	size, ok := IsIntType(k)
 	if !ok {
-		return nil, fmt.Errorf("arg is of type %v; want a uint", k)
+		return nil, fmt.Errorf("arg is of type %v; want an int", k)
 	}
 
 	buf := make([]byte, size)
