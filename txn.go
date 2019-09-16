@@ -672,3 +672,26 @@ func (r *radixIterator) Next() interface{} {
 	}
 	return value
 }
+
+// Snapshot creates a snapshot of the current state of the transaction.
+// Returns a new read-only transaction or nil if the transaction is already
+// aborted or committed.
+func (txn *Txn) Snapshot() *Txn {
+	if txn.rootTxn == nil {
+		return nil
+	}
+
+	snapshot := &Txn{
+		db:      txn.db,
+		rootTxn: txn.rootTxn.Clone(),
+	}
+
+	// Commit sub-transactions into the snapshot
+	for key, subTxn := range txn.modified {
+		path := indexPath(key.Table, key.Index)
+		final := subTxn.CommitOnly()
+		snapshot.rootTxn.Insert(path, final)
+	}
+
+	return snapshot
+}

@@ -1243,3 +1243,65 @@ func TestTxn_LowerBound(t *testing.T) {
 		})
 	}
 }
+
+func TestTxn_Snapshot(t *testing.T) {
+	db := testDB(t)
+	txn := db.Txn(true)
+
+	err := txn.Insert("main", &TestObject{
+		ID:  "one",
+		Foo: "abc",
+		Qux: []string{"abc1", "abc2"},
+	})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	snapshot := txn.Snapshot()
+
+	err = txn.Insert("main", &TestObject{
+		ID:  "two",
+		Foo: "def",
+		Qux: []string{"def1", "def2"},
+	})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	txn.Commit()
+
+	raw, err := snapshot.First("main", "id", "one")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if raw == nil || raw.(*TestObject).ID != "one" {
+		t.Fatalf("TestObject one not found")
+	}
+
+	raw, err = snapshot.First("main", "id", "two")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if raw != nil {
+		t.Fatalf("TestObject two found")
+	}
+
+	txn = db.Txn(false)
+	snapshot = txn.Snapshot()
+
+	raw, err = snapshot.First("main", "id", "one")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if raw == nil || raw.(*TestObject).ID != "one" {
+		t.Fatalf("TestObject one not found")
+	}
+
+	raw, err = snapshot.First("main", "id", "two")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if raw == nil || raw.(*TestObject).ID != "two" {
+		t.Fatalf("TestObject two not found")
+	}
+}
