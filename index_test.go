@@ -131,8 +131,8 @@ func TestStringFieldIndex_FromObject(t *testing.T) {
 	if string(val) != "" {
 		t.Fatalf("bad: %s", val)
 	}
-	if !ok {
-		t.Fatalf("should be ok")
+	if ok {
+		t.Fatalf("should be not ok")
 	}
 }
 

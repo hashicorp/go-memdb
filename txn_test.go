@@ -1217,6 +1217,7 @@ func TestTxn_LowerBound(t *testing.T) {
 
 			txn := db.Txn(true)
 			for _, row := range tc.Rows {
+
 				err := txn.Insert("main", row)
 				if err != nil {
 					t.Fatalf("err inserting: %s", err)
@@ -1242,4 +1243,114 @@ func TestTxn_LowerBound(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestStringFieldIndexerEmptyPointerFromArgs(t *testing.T) {
+	t.Run("does not error with AllowMissing", func(t *testing.T) {
+		schema := &DBSchema{
+			Tables: map[string]*TableSchema{
+				"main": &TableSchema{
+					Name: "main",
+					Indexes: map[string]*IndexSchema{
+						"id": &IndexSchema{
+							Name:   "id",
+							Unique: true,
+							Indexer: &StringFieldIndex{
+								Field: "ID",
+							},
+						},
+						"fu": &IndexSchema{
+							Name: "fu",
+							Indexer: &StringFieldIndex{
+								Field: "Fu",
+							},
+							AllowMissing: true,
+						},
+					},
+				},
+			},
+		}
+
+		db, err := NewMemDB(schema)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		txn := db.Txn(true)
+
+		s1 := "foo1"
+		obj1 := &TestObject{
+			ID: "object1",
+			Fu: &s1,
+		}
+
+		obj2 := &TestObject{
+			ID: "object2",
+			Fu: nil,
+		}
+
+		err = txn.Insert("main", obj1)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		err = txn.Insert("main", obj2)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	t.Run("errors without AllowMissing", func(t *testing.T) {
+		schema := &DBSchema{
+			Tables: map[string]*TableSchema{
+				"main": &TableSchema{
+					Name: "main",
+					Indexes: map[string]*IndexSchema{
+						"id": &IndexSchema{
+							Name:   "id",
+							Unique: true,
+							Indexer: &StringFieldIndex{
+								Field: "ID",
+							},
+						},
+						"fu": &IndexSchema{
+							Name: "fu",
+							Indexer: &StringFieldIndex{
+								Field: "Fu",
+							},
+							AllowMissing: false,
+						},
+					},
+				},
+			},
+		}
+
+		db, err := NewMemDB(schema)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		txn := db.Txn(true)
+
+		s1 := "foo1"
+		obj1 := &TestObject{
+			ID: "object1",
+			Fu: &s1,
+		}
+
+		obj2 := &TestObject{
+			ID: "object2",
+			Fu: nil,
+		}
+
+		err = txn.Insert("main", obj1)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		err = txn.Insert("main", obj2)
+		if err == nil {
+			t.Fatalf("expected err not to be nil")
+		}
+	})
 }
