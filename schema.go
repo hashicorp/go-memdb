@@ -93,7 +93,9 @@ type IndexSchema struct {
 	// exist from a structure.
 	AllowMissing bool
 
-	Unique  bool
+	Unique            bool
+	EnforceUniqueness bool
+
 	Indexer Indexer
 }
 
