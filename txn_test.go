@@ -1354,3 +1354,101 @@ func TestStringFieldIndexerEmptyPointerFromArgs(t *testing.T) {
 		}
 	})
 }
+
+func TestTxn_Insert_Enforce_Unique(t *testing.T) {
+	schema := &DBSchema{
+		Tables: map[string]*TableSchema{
+			"main": &TableSchema{
+				Name: "main",
+				Indexes: map[string]*IndexSchema{
+					"id": &IndexSchema{
+						Name:              "id",
+						Unique:            true,
+						EnforceUniqueness: true,
+						Indexer:           &StringFieldIndex{Field: "ID"},
+					},
+					"foo": &IndexSchema{
+						Name:              "foo",
+						Indexer:           &StringFieldIndex{Field: "Foo"},
+						Unique:            true,
+						EnforceUniqueness: true,
+					},
+					"baz": &IndexSchema{
+						Name:         "baz",
+						Indexer:      &StringFieldIndex{Field: "Baz"},
+						AllowMissing: true,
+					},
+					"qux": &IndexSchema{
+						Name:    "qux",
+						Indexer: &StringSliceFieldIndex{Field: "Qux"},
+					},
+				},
+			},
+		},
+	}
+	db, err := NewMemDB(schema)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	txn := db.Txn(true)
+
+	defer txn.Commit()
+
+	// First Insert
+	obj := &TestObject{
+		ID:  "my-object",
+		Foo: "abc",
+		Qux: []string{"abc1", "abc2"},
+	}
+	err = txn.Insert("main", obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	raw, err := txn.First("main", "id", obj.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if raw != obj {
+		t.Fatalf("bad: %#v %#v", raw, obj)
+	}
+
+	// re-insert should be error
+	err = txn.Insert("main", obj)
+	if err == nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	obj2 := &TestObject{
+		ID:  "my-other-object",
+		Foo: "abc", // same and hence conflicting key
+		Qux: []string{"xyz1", "xyz2"},
+	}
+	err = txn.Insert("main", obj2)
+	if err == nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// make sure original obj is good
+	raw, err = txn.First("main", "id", obj.ID)
+
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if raw != obj {
+		t.Fatalf("bad: %#v %#v", raw, obj)
+	}
+
+	// add with missing key
+	obj2 = &TestObject{
+		ID:  "my-yet-another-object",
+		Qux: []string{"xyz1", "xyz2"},
+	}
+	err = txn.Insert("main", obj2)
+	if err == nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+}

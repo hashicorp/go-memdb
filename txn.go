@@ -179,6 +179,9 @@ func (txn *Txn) Insert(table string, obj interface{}) error {
 	// Lookup the object by ID first, to see if this is an update
 	idTxn := txn.writableIndex(table, id)
 	existing, update := idTxn.Get(idVal)
+	if idSchema.EnforceUniqueness && update {
+		return fmt.Errorf("unique constraint violated for index: 'id'")
+	}
 
 	// On an update, there is an existing object with the given
 	// primary ID. We do the update by deleting the current object
@@ -210,6 +213,15 @@ func (txn *Txn) Insert(table string, obj interface{}) error {
 		if ok && !indexSchema.Unique {
 			for i := range vals {
 				vals[i] = append(vals[i], idVal...)
+			}
+		}
+
+		if indexSchema.EnforceUniqueness && indexSchema.Unique {
+			for _, v := range vals {
+				if _, exists := indexTxn.Get(v); exists {
+					return fmt.Errorf("unique constraint violated"+
+						"for index: '%s'", indexSchema.Name)
+				}
 			}
 		}
 
@@ -264,6 +276,45 @@ func (txn *Txn) Insert(table string, obj interface{}) error {
 		for _, val := range vals {
 			indexTxn.Insert(val, obj)
 		}
+	}
+	return nil
+}
+
+// Update is used to update an object into the given table
+func (txn *Txn) Update(table string, obj interface{}) error {
+	if !txn.write {
+		return fmt.Errorf("cannot update in read-only transaction")
+	}
+
+	// Get the table schema
+	tableSchema, ok := txn.db.schema.Tables[table]
+	if !ok {
+		return fmt.Errorf("invalid table '%s'", table)
+	}
+
+	// Get the primary ID of the object
+	idSchema := tableSchema.Indexes[id]
+	idIndexer := idSchema.Indexer.(SingleIndexer)
+	ok, idVal, err := idIndexer.FromObject(obj)
+	if err != nil {
+		return fmt.Errorf("failed to build primary index: %v", err)
+	}
+	if !ok {
+		return fmt.Errorf("object missing primary index")
+	}
+
+	// Lookup the object by ID first, to see if this is an update
+	idTxn := txn.writableIndex(table, id)
+	existing, exists := idTxn.Get(idVal)
+
+	if !exists {
+		return fmt.Errorf("object not found")
+	}
+	if err := txn.Delete(table, existing); err != nil {
+		return fmt.Errorf("failed to delete object for update: %v", err)
+	}
+	if err := txn.Insert(table, obj); err != nil {
+		return fmt.Errorf("failed to insert object for update: %v", err)
 	}
 	return nil
 }
