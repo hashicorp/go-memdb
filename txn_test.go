@@ -1354,3 +1354,428 @@ func TestStringFieldIndexerEmptyPointerFromArgs(t *testing.T) {
 		}
 	})
 }
+
+func TestTxn_ChangeSet(t *testing.T) {
+
+	// Create a schmea that exercises all mutation code paths (i.e. has a prefix
+	// index as well as primary and multple tables).
+	schema := &DBSchema{
+		Tables: map[string]*TableSchema{
+			"one": &TableSchema{
+				Name: "one",
+				Indexes: map[string]*IndexSchema{
+					"id": &IndexSchema{
+						Name:   "id",
+						Unique: true,
+						Indexer: &StringFieldIndex{
+							Field: "ID",
+						},
+					},
+					"foo": &IndexSchema{
+						Name: "foo",
+						Indexer: &StringFieldIndex{
+							Field: "Foo",
+						},
+						AllowMissing: true,
+					},
+				},
+			},
+			"two": &TableSchema{
+				Name: "two",
+				Indexes: map[string]*IndexSchema{
+					"id": &IndexSchema{
+						Name:   "id",
+						Unique: true,
+						Indexer: &StringFieldIndex{
+							Field: "ID",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	basicRows := []TestObject{
+		{ID: "00001", Foo: "aaaaaaa"},
+		{ID: "00002", Foo: "aaaaaab"},
+		{ID: "00004", Foo: "aaabbbb"},
+		{ID: "00005", Foo: "aabbbcc"},
+		{ID: "00010", Foo: "bbccccc"},
+		{ID: "10010", Foo: "ccccddd"},
+	}
+
+	mutatedRows := []TestObject{
+		{ID: "00001", Foo: "changed"},
+		{ID: "00002", Foo: "changed"},
+		{ID: "00004", Foo: "changed"},
+		{ID: "00005", Foo: "changed"},
+		{ID: "00010", Foo: "changed"},
+		{ID: "10010", Foo: "changed"},
+	}
+
+	mutated2Rows := []TestObject{
+		{ID: "00001", Foo: "changed again"},
+	}
+
+	cases := []struct {
+		Name            string
+		TrackingEnabled bool
+		OneRows         []TestObject
+		TwoRows         []TestObject
+		Mutate          func(t *testing.T, tx *Txn)
+		Abort           bool
+		WantChangeSet   ChangeSet
+	}{
+		{
+			Name:            "tracking disabled",
+			TrackingEnabled: false,
+			OneRows:         nil,
+			TwoRows:         nil,
+			Mutate: func(t *testing.T, tx *Txn) {
+				err := tx.Insert("one", basicRows[0])
+				if err != nil {
+					t.Fatalf("Err: %s", err)
+				}
+				err = tx.Insert("one", basicRows[1])
+				if err != nil {
+					t.Fatalf("Err: %s", err)
+				}
+				err = tx.Insert("two", basicRows[2])
+				if err != nil {
+					t.Fatalf("Err: %s", err)
+				}
+			},
+			WantChangeSet: nil,
+		},
+		{
+			Name:            "tracking enabled, basic inserts",
+			TrackingEnabled: true,
+			OneRows:         nil,
+			TwoRows:         nil,
+			Mutate: func(t *testing.T, tx *Txn) {
+				err := tx.Insert("one", basicRows[0])
+				if err != nil {
+					t.Fatalf("Err: %s", err)
+				}
+				err = tx.Insert("one", basicRows[1])
+				if err != nil {
+					t.Fatalf("Err: %s", err)
+				}
+				err = tx.Insert("two", basicRows[2])
+				if err != nil {
+					t.Fatalf("Err: %s", err)
+				}
+			},
+			WantChangeSet: ChangeSet{
+				Mutation{
+					Table:  "one",
+					Before: nil,
+					After:  basicRows[0],
+				},
+				Mutation{
+					Table:  "one",
+					Before: nil,
+					After:  basicRows[1],
+				},
+				Mutation{
+					Table:  "two",
+					Before: nil,
+					After:  basicRows[2],
+				},
+			},
+		},
+		{
+			Name:            "tracking enabled, tx aborts",
+			TrackingEnabled: true,
+			OneRows:         nil,
+			TwoRows:         nil,
+			Mutate: func(t *testing.T, tx *Txn) {
+				err := tx.Insert("one", basicRows[0])
+				if err != nil {
+					t.Fatalf("Err: %s", err)
+				}
+				err = tx.Insert("one", basicRows[1])
+				if err != nil {
+					t.Fatalf("Err: %s", err)
+				}
+				err = tx.Insert("two", basicRows[2])
+				if err != nil {
+					t.Fatalf("Err: %s", err)
+				}
+			},
+			Abort:         true,
+			WantChangeSet: nil,
+		},
+		{
+			Name:            "mixed insert, update, delete",
+			TrackingEnabled: true,
+			OneRows:         []TestObject{basicRows[0]},
+			TwoRows:         []TestObject{basicRows[2]},
+			Mutate: func(t *testing.T, tx *Txn) {
+				// Insert a new row
+				err := tx.Insert("one", basicRows[1])
+				if err != nil {
+					t.Fatalf("Err: %s", err)
+				}
+				// Update an existing row
+				err = tx.Insert("one", mutatedRows[0])
+				if err != nil {
+					t.Fatalf("Err: %s", err)
+				}
+				// Delete an existing row
+				err = tx.Delete("two", basicRows[2])
+				if err != nil {
+					t.Fatalf("Err: %s", err)
+				}
+			},
+			WantChangeSet: ChangeSet{
+				Mutation{
+					Table:  "one",
+					Before: nil,
+					After:  basicRows[1],
+				},
+				Mutation{
+					Table:  "one",
+					Before: basicRows[0],
+					After:  mutatedRows[0],
+				},
+				Mutation{
+					Table:  "two",
+					Before: basicRows[2],
+					After:  nil,
+				},
+			},
+		},
+		{
+			Name:            "mutate rows in same txn",
+			TrackingEnabled: true,
+			OneRows:         []TestObject{},
+			TwoRows:         []TestObject{},
+			Mutate: func(t *testing.T, tx *Txn) {
+				// Insert a new row
+				err := tx.Insert("one", basicRows[0])
+				if err != nil {
+					t.Fatalf("Err: %s", err)
+				}
+				// Mutate same row again
+				err = tx.Insert("one", mutatedRows[0])
+				if err != nil {
+					t.Fatalf("Err: %s", err)
+				}
+				// Mutate same row again
+				err = tx.Insert("one", mutated2Rows[0])
+				if err != nil {
+					t.Fatalf("Err: %s", err)
+				}
+			},
+			WantChangeSet: ChangeSet{
+				// ChangeSet should only include a single object mutation going from
+				// nothing before to the final value.
+				Mutation{
+					Table:  "one",
+					Before: nil,
+					After:  mutated2Rows[0],
+				},
+			},
+		},
+		{
+			Name:            "mutate and delete in same txn",
+			TrackingEnabled: true,
+			OneRows:         []TestObject{basicRows[0]},
+			TwoRows:         []TestObject{},
+			Mutate: func(t *testing.T, tx *Txn) {
+				// Update a new row
+				err := tx.Insert("one", mutatedRows[0])
+				if err != nil {
+					t.Fatalf("Err: %s", err)
+				}
+				// Mutate same row again
+				err = tx.Delete("one", mutatedRows[0])
+				if err != nil {
+					t.Fatalf("Err: %s", err)
+				}
+			},
+			WantChangeSet: ChangeSet{
+				// ChangeSet should only include a single delete
+				Mutation{
+					Table:  "one",
+					Before: basicRows[0],
+					After:  nil,
+				},
+			},
+		},
+		{
+			Name:            "delete prefix",
+			TrackingEnabled: true,
+			OneRows:         basicRows,
+			TwoRows:         []TestObject{},
+			Mutate: func(t *testing.T, tx *Txn) {
+				// Delete Prefix
+				_, err := tx.DeletePrefix("one", "foo_prefix", "aaa")
+				if err != nil {
+					t.Fatalf("Err: %s", err)
+				}
+			},
+			WantChangeSet: ChangeSet{
+				// First three rows should be removed
+				Mutation{
+					Table:  "one",
+					Before: basicRows[0],
+					After:  nil,
+				},
+				Mutation{
+					Table:  "one",
+					Before: basicRows[1],
+					After:  nil,
+				},
+				Mutation{
+					Table:  "one",
+					Before: basicRows[2],
+					After:  nil,
+				},
+			},
+		},
+		{
+			Name:            "delete all",
+			TrackingEnabled: true,
+			OneRows:         mutatedRows,
+			TwoRows:         mutatedRows,
+			Mutate: func(t *testing.T, tx *Txn) {
+				// Delete All rows
+				_, err := tx.DeleteAll("one", "foo", "changed")
+				if err != nil {
+					t.Fatalf("Err: %s", err)
+				}
+			},
+			WantChangeSet: ChangeSet{
+				// All rows should be removed
+				Mutation{
+					Table:  "one",
+					Before: mutatedRows[0],
+					After:  nil,
+				},
+				Mutation{
+					Table:  "one",
+					Before: mutatedRows[1],
+					After:  nil,
+				},
+				Mutation{
+					Table:  "one",
+					Before: mutatedRows[2],
+					After:  nil,
+				},
+				Mutation{
+					Table:  "one",
+					Before: mutatedRows[3],
+					After:  nil,
+				},
+				Mutation{
+					Table:  "one",
+					Before: mutatedRows[4],
+					After:  nil,
+				},
+				Mutation{
+					Table:  "one",
+					Before: mutatedRows[5],
+					After:  nil,
+				},
+			},
+		},
+		{
+			Name:            "delete all partial",
+			TrackingEnabled: true,
+			OneRows: []TestObject{
+				// Half the rows have unique Foo values half have "changed"
+				basicRows[0], basicRows[1],
+				mutatedRows[2], mutatedRows[3],
+			},
+			TwoRows: mutatedRows,
+			Mutate: func(t *testing.T, tx *Txn) {
+				// Delete All rows
+				_, err := tx.DeleteAll("one", "foo", "changed")
+				if err != nil {
+					t.Fatalf("Err: %s", err)
+				}
+			},
+			WantChangeSet: ChangeSet{
+				// Only the matching rows should be removed
+				Mutation{
+					Table:  "one",
+					Before: mutatedRows[2],
+					After:  nil,
+				},
+				Mutation{
+					Table:  "one",
+					Before: mutatedRows[3],
+					After:  nil,
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.Name, func(t *testing.T) {
+			db, err := NewMemDB(schema)
+			if err != nil {
+				t.Fatalf("Failed to create DB: %s", err)
+			}
+
+			// Insert initial rows
+			tx := db.Txn(true)
+			for i, r := range tc.OneRows {
+				err = tx.Insert("one", r)
+				if err != nil {
+					t.Fatalf("Failed to insert OneRows[%d]: %s", i, err)
+				}
+			}
+			for i, r := range tc.TwoRows {
+				err = tx.Insert("two", r)
+				if err != nil {
+					t.Fatalf("Failed to insert TwoRows[%d]: %s", i, err)
+				}
+			}
+			tx.Commit()
+
+			// Do test mutation
+			tx2 := db.Txn(true)
+
+			if tc.TrackingEnabled {
+				tx2.TrackChanges()
+			}
+
+			tc.Mutate(t, tx2)
+
+			if tc.Abort {
+				tx2.Abort()
+				gotAfterCommit := tx2.ChangeSet()
+				if !reflect.DeepEqual(gotAfterCommit, tc.WantChangeSet) {
+					t.Fatalf("\n gotAfterCommit: %#v\n           want: %#v",
+						gotAfterCommit, tc.WantChangeSet)
+				}
+				return
+			}
+
+			gotBeforeCommit := tx2.ChangeSet()
+			tx2.Commit()
+			gotAfterCommit := tx2.ChangeSet()
+
+			// nil out the keys in Wanted since those are an implementation detail
+			for i := range gotBeforeCommit {
+				gotBeforeCommit[i].primaryKey = nil
+			}
+			for i := range gotAfterCommit {
+				gotAfterCommit[i].primaryKey = nil
+			}
+
+			if !reflect.DeepEqual(gotBeforeCommit, tc.WantChangeSet) {
+				t.Fatalf("\n gotBeforeCommit: %#v\n            want: %#v",
+					gotBeforeCommit, tc.WantChangeSet)
+			}
+			if !reflect.DeepEqual(gotAfterCommit, tc.WantChangeSet) {
+				t.Fatalf("\n gotAfterCommit: %#v\n           want: %#v",
+					gotAfterCommit, tc.WantChangeSet)
+			}
+		})
+	}
+}

@@ -33,7 +33,21 @@ type Txn struct {
 	rootTxn *iradix.Txn
 	after   []func()
 
+	// changeSet is used to track the changes performed during the transaction. If
+	// it is nil at transaction start then changes are not tracked.
+	changeSet ChangeSet
+
 	modified map[tableIndex]*iradix.Txn
+}
+
+// TrackChanges enables change tracking for the transaction. If called at any
+// point before commit, subsequent mutations will be recorded and can be
+// retrieved using ChangeSet. Once this has been called on a transaction it
+// can't be unset.
+func (txn *Txn) TrackChanges() {
+	if txn.changeSet == nil {
+		txn.changeSet = make(ChangeSet, 0, 1)
+	}
 }
 
 // readableIndex returns a transaction usable for reading the given
@@ -101,6 +115,7 @@ func (txn *Txn) Abort() {
 	// Clear the txn
 	txn.rootTxn = nil
 	txn.modified = nil
+	txn.changeSet = nil
 
 	// Release the writer lock since this is invalid
 	txn.db.writer.Unlock()
@@ -265,6 +280,14 @@ func (txn *Txn) Insert(table string, obj interface{}) error {
 			indexTxn.Insert(val, obj)
 		}
 	}
+	if txn.changeSet != nil {
+		txn.changeSet = append(txn.changeSet, Mutation{
+			Table:      table,
+			Before:     existing, // might be nil on an update
+			After:      obj,
+			primaryKey: idVal,
+		})
+	}
 	return nil
 }
 
@@ -332,6 +355,14 @@ func (txn *Txn) Delete(table string, obj interface{}) error {
 			}
 		}
 	}
+	if txn.changeSet != nil {
+		txn.changeSet = append(txn.changeSet, Mutation{
+			Table:      table,
+			Before:     existing,
+			After:      nil, // Now nil indicates deletion
+			primaryKey: idVal,
+		})
+	}
 	return nil
 }
 
@@ -376,6 +407,19 @@ func (txn *Txn) DeletePrefix(table string, prefix_index string, prefix string) (
 		if !ok {
 			return false, fmt.Errorf("object missing primary index")
 		}
+		if txn.changeSet != nil {
+			// Record the deletion
+			idTxn := txn.writableIndex(table, id)
+			existing, ok := idTxn.Get(idVal)
+			if ok {
+				txn.changeSet = append(txn.changeSet, Mutation{
+					Table:      table,
+					Before:     existing,
+					After:      nil, // Now nil indicates deletion
+					primaryKey: idVal,
+				})
+			}
+		}
 		// Remove the object from all the indexes except the given prefix index
 		for name, indexSchema := range tableSchema.Indexes {
 			if name == deletePrefixIndex {
@@ -413,6 +457,7 @@ func (txn *Txn) DeletePrefix(table string, prefix_index string, prefix string) (
 				}
 			}
 		}
+
 	}
 	if foundAny {
 		indexTxn := txn.writableIndex(table, deletePrefixIndex)
@@ -627,6 +672,80 @@ func (txn *Txn) LowerBound(table, index string, args ...interface{}) (ResultIter
 		iter: indexIter,
 	}
 	return iter, nil
+}
+
+// objectID is a tuple of table name and the raw internal id byte slice
+// converted to a string. It's only converted to a string to make it comparable
+// so this struct can be used as a map index.
+type objectID struct {
+	Table    string
+	IndexVal string
+}
+
+// mutInfo stores metadata about mutations to allow collapsing multiple
+// mutations to the same object into one.
+type mutInfo struct {
+	firstBefore interface{}
+	lastIdx     int
+}
+
+// ChangeSet returns the set of object changes that have been made in the
+// transaction so far. If change tracking is not enabled it wil always return
+// nil. It can be called before or after Commit. If it is before Commit it will
+// return all changes made so far which may not be the same as the final
+// ChangeSet. After abort it will always return nil. As with other Txn methods
+// it's not safe to call this from a different goroutine than the one making
+// mutations or committing the transaction. Mutations will appear in the order
+// they were performed in the transaction but multiple operations to the same
+// object will be collapsed so only the effective overall change to that object
+// is present. If transaction operations are dependent (e.g. copy object X to Y
+// then delete X) this might mean the set of mutations is incomplete to verify
+// history, but it is complete in that the net effect is preserved (Y got a new
+// value, X got removed).
+func (txn *Txn) ChangeSet() ChangeSet {
+	if txn.changeSet == nil {
+		return nil
+	}
+
+	// De-duplicate mutations by key so last-write-wins but keep the mutations in
+	// order.
+	dups := make(map[objectID]mutInfo)
+	for i, m := range txn.changeSet {
+		oid := objectID{
+			Table:    m.Table,
+			IndexVal: string(m.primaryKey),
+		}
+		// Store the latest mutation index for each key value
+		mi, ok := dups[oid]
+		if !ok {
+			// First entry for key, store the before value
+			mi.firstBefore = m.Before
+		}
+		mi.lastIdx = i
+		dups[oid] = mi
+	}
+	if len(dups) == len(txn.changeSet) {
+		// No duplicates found, fast path return it as is
+		return txn.changeSet
+	}
+
+	// Need to remove the duplicates
+	cs := make(ChangeSet, 0, len(dups))
+	for i, m := range txn.changeSet {
+		oid := objectID{
+			Table:    m.Table,
+			IndexVal: string(m.primaryKey),
+		}
+		mi := dups[oid]
+		if mi.lastIdx == i {
+			// This was the latest value for this key copy it with the before value in
+			// case it's different. Note that m is not a pointer so we are not
+			// modifying the txn.changeSet here - it's already a copy.
+			m.Before = mi.firstBefore
+			cs = append(cs, m)
+		}
+	}
+	return cs
 }
 
 func (txn *Txn) getIndexIterator(table, index string, args ...interface{}) (*iradix.Iterator, []byte, error) {
