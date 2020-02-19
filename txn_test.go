@@ -1355,7 +1355,7 @@ func TestStringFieldIndexerEmptyPointerFromArgs(t *testing.T) {
 	})
 }
 
-func TestTxn_ChangeSet(t *testing.T) {
+func TestTxn_Changes(t *testing.T) {
 
 	// Create a schmea that exercises all mutation code paths (i.e. has a prefix
 	// index as well as primary and multple tables).
@@ -1424,7 +1424,7 @@ func TestTxn_ChangeSet(t *testing.T) {
 		TwoRows         []TestObject
 		Mutate          func(t *testing.T, tx *Txn)
 		Abort           bool
-		WantChangeSet   ChangeSet
+		WantChanges     Changes
 	}{
 		{
 			Name:            "tracking disabled",
@@ -1445,7 +1445,7 @@ func TestTxn_ChangeSet(t *testing.T) {
 					t.Fatalf("Err: %s", err)
 				}
 			},
-			WantChangeSet: nil,
+			WantChanges: nil,
 		},
 		{
 			Name:            "tracking enabled, basic inserts",
@@ -1466,18 +1466,18 @@ func TestTxn_ChangeSet(t *testing.T) {
 					t.Fatalf("Err: %s", err)
 				}
 			},
-			WantChangeSet: ChangeSet{
-				Mutation{
+			WantChanges: Changes{
+				Change{
 					Table:  "one",
 					Before: nil,
 					After:  basicRows[0],
 				},
-				Mutation{
+				Change{
 					Table:  "one",
 					Before: nil,
 					After:  basicRows[1],
 				},
-				Mutation{
+				Change{
 					Table:  "two",
 					Before: nil,
 					After:  basicRows[2],
@@ -1503,8 +1503,8 @@ func TestTxn_ChangeSet(t *testing.T) {
 					t.Fatalf("Err: %s", err)
 				}
 			},
-			Abort:         true,
-			WantChangeSet: nil,
+			Abort:       true,
+			WantChanges: nil,
 		},
 		{
 			Name:            "mixed insert, update, delete",
@@ -1528,18 +1528,18 @@ func TestTxn_ChangeSet(t *testing.T) {
 					t.Fatalf("Err: %s", err)
 				}
 			},
-			WantChangeSet: ChangeSet{
-				Mutation{
+			WantChanges: Changes{
+				Change{
 					Table:  "one",
 					Before: nil,
 					After:  basicRows[1],
 				},
-				Mutation{
+				Change{
 					Table:  "one",
 					Before: basicRows[0],
 					After:  mutatedRows[0],
 				},
-				Mutation{
+				Change{
 					Table:  "two",
 					Before: basicRows[2],
 					After:  nil,
@@ -1568,10 +1568,10 @@ func TestTxn_ChangeSet(t *testing.T) {
 					t.Fatalf("Err: %s", err)
 				}
 			},
-			WantChangeSet: ChangeSet{
-				// ChangeSet should only include a single object mutation going from
+			WantChanges: Changes{
+				// Changes should only include a single object mutation going from
 				// nothing before to the final value.
-				Mutation{
+				Change{
 					Table:  "one",
 					Before: nil,
 					After:  mutated2Rows[0],
@@ -1595,9 +1595,9 @@ func TestTxn_ChangeSet(t *testing.T) {
 					t.Fatalf("Err: %s", err)
 				}
 			},
-			WantChangeSet: ChangeSet{
-				// ChangeSet should only include a single delete
-				Mutation{
+			WantChanges: Changes{
+				// Changes should only include a single delete
+				Change{
 					Table:  "one",
 					Before: basicRows[0],
 					After:  nil,
@@ -1616,19 +1616,19 @@ func TestTxn_ChangeSet(t *testing.T) {
 					t.Fatalf("Err: %s", err)
 				}
 			},
-			WantChangeSet: ChangeSet{
+			WantChanges: Changes{
 				// First three rows should be removed
-				Mutation{
+				Change{
 					Table:  "one",
 					Before: basicRows[0],
 					After:  nil,
 				},
-				Mutation{
+				Change{
 					Table:  "one",
 					Before: basicRows[1],
 					After:  nil,
 				},
-				Mutation{
+				Change{
 					Table:  "one",
 					Before: basicRows[2],
 					After:  nil,
@@ -1647,34 +1647,34 @@ func TestTxn_ChangeSet(t *testing.T) {
 					t.Fatalf("Err: %s", err)
 				}
 			},
-			WantChangeSet: ChangeSet{
+			WantChanges: Changes{
 				// All rows should be removed
-				Mutation{
+				Change{
 					Table:  "one",
 					Before: mutatedRows[0],
 					After:  nil,
 				},
-				Mutation{
+				Change{
 					Table:  "one",
 					Before: mutatedRows[1],
 					After:  nil,
 				},
-				Mutation{
+				Change{
 					Table:  "one",
 					Before: mutatedRows[2],
 					After:  nil,
 				},
-				Mutation{
+				Change{
 					Table:  "one",
 					Before: mutatedRows[3],
 					After:  nil,
 				},
-				Mutation{
+				Change{
 					Table:  "one",
 					Before: mutatedRows[4],
 					After:  nil,
 				},
-				Mutation{
+				Change{
 					Table:  "one",
 					Before: mutatedRows[5],
 					After:  nil,
@@ -1697,14 +1697,14 @@ func TestTxn_ChangeSet(t *testing.T) {
 					t.Fatalf("Err: %s", err)
 				}
 			},
-			WantChangeSet: ChangeSet{
+			WantChanges: Changes{
 				// Only the matching rows should be removed
-				Mutation{
+				Change{
 					Table:  "one",
 					Before: mutatedRows[2],
 					After:  nil,
 				},
-				Mutation{
+				Change{
 					Table:  "one",
 					Before: mutatedRows[3],
 					After:  nil,
@@ -1748,17 +1748,17 @@ func TestTxn_ChangeSet(t *testing.T) {
 
 			if tc.Abort {
 				tx2.Abort()
-				gotAfterCommit := tx2.ChangeSet()
-				if !reflect.DeepEqual(gotAfterCommit, tc.WantChangeSet) {
+				gotAfterCommit := tx2.Changes()
+				if !reflect.DeepEqual(gotAfterCommit, tc.WantChanges) {
 					t.Fatalf("\n gotAfterCommit: %#v\n           want: %#v",
-						gotAfterCommit, tc.WantChangeSet)
+						gotAfterCommit, tc.WantChanges)
 				}
 				return
 			}
 
-			gotBeforeCommit := tx2.ChangeSet()
+			gotBeforeCommit := tx2.Changes()
 			tx2.Commit()
-			gotAfterCommit := tx2.ChangeSet()
+			gotAfterCommit := tx2.Changes()
 
 			// nil out the keys in Wanted since those are an implementation detail
 			for i := range gotBeforeCommit {
@@ -1768,13 +1768,13 @@ func TestTxn_ChangeSet(t *testing.T) {
 				gotAfterCommit[i].primaryKey = nil
 			}
 
-			if !reflect.DeepEqual(gotBeforeCommit, tc.WantChangeSet) {
+			if !reflect.DeepEqual(gotBeforeCommit, tc.WantChanges) {
 				t.Fatalf("\n gotBeforeCommit: %#v\n            want: %#v",
-					gotBeforeCommit, tc.WantChangeSet)
+					gotBeforeCommit, tc.WantChanges)
 			}
-			if !reflect.DeepEqual(gotAfterCommit, tc.WantChangeSet) {
+			if !reflect.DeepEqual(gotAfterCommit, tc.WantChanges) {
 				t.Fatalf("\n gotAfterCommit: %#v\n           want: %#v",
-					gotAfterCommit, tc.WantChangeSet)
+					gotAfterCommit, tc.WantChanges)
 			}
 		})
 	}

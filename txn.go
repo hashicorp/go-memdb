@@ -33,9 +33,9 @@ type Txn struct {
 	rootTxn *iradix.Txn
 	after   []func()
 
-	// changeSet is used to track the changes performed during the transaction. If
+	// changes is used to track the changes performed during the transaction. If
 	// it is nil at transaction start then changes are not tracked.
-	changeSet ChangeSet
+	changes Changes
 
 	modified map[tableIndex]*iradix.Txn
 }
@@ -43,10 +43,12 @@ type Txn struct {
 // TrackChanges enables change tracking for the transaction. If called at any
 // point before commit, subsequent mutations will be recorded and can be
 // retrieved using ChangeSet. Once this has been called on a transaction it
-// can't be unset.
+// can't be unset. As with other Txn methods it's not safe to call this from a
+// different goroutine than the one making mutations or committing the
+// transaction.
 func (txn *Txn) TrackChanges() {
-	if txn.changeSet == nil {
-		txn.changeSet = make(ChangeSet, 0, 1)
+	if txn.changes == nil {
+		txn.changes = make(Changes, 0, 1)
 	}
 }
 
@@ -115,7 +117,7 @@ func (txn *Txn) Abort() {
 	// Clear the txn
 	txn.rootTxn = nil
 	txn.modified = nil
-	txn.changeSet = nil
+	txn.changes = nil
 
 	// Release the writer lock since this is invalid
 	txn.db.writer.Unlock()
@@ -280,10 +282,10 @@ func (txn *Txn) Insert(table string, obj interface{}) error {
 			indexTxn.Insert(val, obj)
 		}
 	}
-	if txn.changeSet != nil {
-		txn.changeSet = append(txn.changeSet, Mutation{
+	if txn.changes != nil {
+		txn.changes = append(txn.changes, Change{
 			Table:      table,
-			Before:     existing, // might be nil on an update
+			Before:     existing, // might be nil on a create
 			After:      obj,
 			primaryKey: idVal,
 		})
@@ -355,8 +357,8 @@ func (txn *Txn) Delete(table string, obj interface{}) error {
 			}
 		}
 	}
-	if txn.changeSet != nil {
-		txn.changeSet = append(txn.changeSet, Mutation{
+	if txn.changes != nil {
+		txn.changes = append(txn.changes, Change{
 			Table:      table,
 			Before:     existing,
 			After:      nil, // Now nil indicates deletion
@@ -407,12 +409,12 @@ func (txn *Txn) DeletePrefix(table string, prefix_index string, prefix string) (
 		if !ok {
 			return false, fmt.Errorf("object missing primary index")
 		}
-		if txn.changeSet != nil {
+		if txn.changes != nil {
 			// Record the deletion
 			idTxn := txn.writableIndex(table, id)
 			existing, ok := idTxn.Get(idVal)
 			if ok {
-				txn.changeSet = append(txn.changeSet, Mutation{
+				txn.changes = append(txn.changes, Change{
 					Table:      table,
 					Before:     existing,
 					After:      nil, // Now nil indicates deletion
@@ -689,11 +691,11 @@ type mutInfo struct {
 	lastIdx     int
 }
 
-// ChangeSet returns the set of object changes that have been made in the
+// Changes returns the set of object changes that have been made in the
 // transaction so far. If change tracking is not enabled it wil always return
 // nil. It can be called before or after Commit. If it is before Commit it will
 // return all changes made so far which may not be the same as the final
-// ChangeSet. After abort it will always return nil. As with other Txn methods
+// Changes. After abort it will always return nil. As with other Txn methods
 // it's not safe to call this from a different goroutine than the one making
 // mutations or committing the transaction. Mutations will appear in the order
 // they were performed in the transaction but multiple operations to the same
@@ -702,15 +704,15 @@ type mutInfo struct {
 // then delete X) this might mean the set of mutations is incomplete to verify
 // history, but it is complete in that the net effect is preserved (Y got a new
 // value, X got removed).
-func (txn *Txn) ChangeSet() ChangeSet {
-	if txn.changeSet == nil {
+func (txn *Txn) Changes() Changes {
+	if txn.changes == nil {
 		return nil
 	}
 
-	// De-duplicate mutations by key so last-write-wins but keep the mutations in
-	// order.
+	// De-duplicate mutations by key so all take effect at the point of the last
+	// write but we keep the mutations in order.
 	dups := make(map[objectID]mutInfo)
-	for i, m := range txn.changeSet {
+	for i, m := range txn.changes {
 		oid := objectID{
 			Table:    m.Table,
 			IndexVal: string(m.primaryKey),
@@ -724,14 +726,14 @@ func (txn *Txn) ChangeSet() ChangeSet {
 		mi.lastIdx = i
 		dups[oid] = mi
 	}
-	if len(dups) == len(txn.changeSet) {
+	if len(dups) == len(txn.changes) {
 		// No duplicates found, fast path return it as is
-		return txn.changeSet
+		return txn.changes
 	}
 
 	// Need to remove the duplicates
-	cs := make(ChangeSet, 0, len(dups))
-	for i, m := range txn.changeSet {
+	cs := make(Changes, 0, len(dups))
+	for i, m := range txn.changes {
 		oid := objectID{
 			Table:    m.Table,
 			IndexVal: string(m.primaryKey),
@@ -745,6 +747,8 @@ func (txn *Txn) ChangeSet() ChangeSet {
 			cs = append(cs, m)
 		}
 	}
+	// Store the de-duped version in case this is called again
+	txn.changes = cs
 	return cs
 }
 

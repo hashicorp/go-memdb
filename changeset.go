@@ -1,11 +1,11 @@
 package memdb
 
-// ChangeSet describes a set of changes to memDB tables performed during a
+// Changes describes a set of mutations to memDB tables performed during a
 // transaction.
-type ChangeSet []Mutation
+type Changes []Change
 
-// Mutation describes a change to an object in a table.
-type Mutation struct {
+// Change describes a mutation to an object in a table.
+type Change struct {
 	Table  string
 	Before interface{}
 	After  interface{}
@@ -17,18 +17,18 @@ type Mutation struct {
 }
 
 // Created returns true if the mutation describes a new object being inserted.
-func (m *Mutation) Created() bool {
+func (m *Change) Created() bool {
 	return m.Before == nil && m.After != nil
 }
 
 // Updated returns true if the mutation describes an existing object being
 // updated.
-func (m *Mutation) Updated() bool {
+func (m *Change) Updated() bool {
 	return m.Before != nil && m.After != nil
 }
 
 // Deleted returns true if the mutation describes an existing object being
 // deleted.
-func (m *Mutation) Deleted() bool {
+func (m *Change) Deleted() bool {
 	return m.Before != nil && m.After == nil
 }
