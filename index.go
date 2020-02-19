@@ -428,6 +428,67 @@ func IsUintType(k reflect.Kind) (size int, okay bool) {
 	}
 }
 
+// IntSliceFieldIndex builds an index from a field on an object that is a
+// int slice ([]int). Each value within the int slice can be used for
+// lookup.
+type IntSliceFieldIndex struct {
+	Field string
+}
+
+func (s *IntSliceFieldIndex) FromObject(obj interface{}) (bool, [][]byte, error) {
+	v := reflect.ValueOf(obj)
+	v = reflect.Indirect(v) // Dereference the pointer if any
+
+	fv := v.FieldByName(s.Field)
+	if !fv.IsValid() {
+		return false, nil,
+			fmt.Errorf("field '%s' for %#v is invalid", s.Field, obj)
+	}
+
+	if fv.Kind() != reflect.Slice || fv.Type().Elem().Kind() != reflect.Int {
+		return false, nil, fmt.Errorf("field '%s' is not an int slice", s.Field)
+	}
+
+	length := fv.Len()
+	vals := make([][]byte, 0, length)
+	for i := 0; i < fv.Len(); i++ {
+		size, ok := IsIntType(fv.Index(i).Kind())
+		if !ok {
+			return false, nil, fmt.Errorf("arg is of type %v; want an int", fv.Index(i))
+		}
+		buf := make([]byte, size)
+		binary.LittleEndian.PutUint32(buf, uint32(fv.Index(i).Int()))
+		vals = append(vals, buf)
+	}
+	if len(vals) == 0 {
+		return false, nil, nil
+	}
+	return true, vals, nil
+}
+
+func (i *IntSliceFieldIndex) FromArgs(args ...interface{}) ([]byte, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("must provide only a single argument")
+	}
+
+	v := reflect.ValueOf(args[0])
+	if !v.IsValid() {
+		return nil, fmt.Errorf("%#v is invalid", args[0])
+	}
+
+	k := v.Kind()
+	size, ok := IsIntType(k)
+	if !ok {
+		return nil, fmt.Errorf("arg is of type %v; want an int", k)
+	}
+
+	buf := make([]byte, size)
+	val := v.Int()
+	binary.LittleEndian.PutUint32(buf, uint32(val))
+
+	return buf, nil
+}
+
 // UUIDFieldIndex is used to extract a field from an object
 // using reflection and builds an index on that field by treating
 // it as a UUID. This is an optimization to using a StringFieldIndex

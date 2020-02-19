@@ -137,6 +137,7 @@ func TestTxn_Abort(t *testing.T) {
 	}
 }
 
+// Test that performs different get operations over testComplexSchema() indexes
 func TestComplexDB(t *testing.T) {
 	db := testComplexDB(t)
 	testPopulateData(t, db)
@@ -279,6 +280,72 @@ func TestComplexDB(t *testing.T) {
 	if place.Tags[1] != "Earth" {
 		t.Fatalf("bad place: %v", place)
 	}
+
+	// Get based on string slice value
+	for _, luckyAnimal := range []string{"Dog", "Cat", "Giraffe"} {
+		raw, err = txn.First("people", "lucky_animals", luckyAnimal)
+		noErr(t, err)
+		if raw == nil {
+			t.Fatalf("should get person")
+		}
+		person = raw.(*TestPerson)
+		if person.First != "Armon" {
+			t.Fatalf("wrong person!")
+		}
+	}
+
+	raw, err = txn.First("people", "lucky_animals", "Cow")
+	noErr(t, err)
+	if raw == nil {
+		t.Fatalf("should get person")
+	}
+	person = raw.(*TestPerson)
+	if person.First != "Alex" {
+		t.Fatalf("wrong person!")
+	}
+
+	raw, err = txn.First("people", "lucky_animals", "Sea horse")
+	noErr(t, err)
+	if raw == nil {
+		t.Fatalf("should get person")
+	}
+	person = raw.(*TestPerson)
+	if person.First != "Mitchell" {
+		t.Fatalf("wrong person!")
+	}
+
+	// Get based on int slice value
+	for _, luckyNumber := range []int{7, 42, 101} {
+		raw, err = txn.First("people", "lucky_numbers", luckyNumber)
+		noErr(t, err)
+		if raw == nil {
+			t.Fatalf("should get person")
+		}
+		person = raw.(*TestPerson)
+		if person.First != "Armon" {
+			t.Fatalf("wrong person!")
+		}
+	}
+
+	raw, err = txn.First("people", "lucky_numbers", 1)
+	noErr(t, err)
+	if raw == nil {
+		t.Fatalf("should get person")
+	}
+	person = raw.(*TestPerson)
+	if person.First != "Alex" {
+		t.Fatalf("wrong person!")
+	}
+
+	raw, err = txn.First("people", "lucky_numbers", 912)
+	noErr(t, err)
+	if raw == nil {
+		t.Fatalf("should get person")
+	}
+	person = raw.(*TestPerson)
+	if person.First != "Mitchell" {
+		t.Fatalf("wrong person!")
+	}
 }
 
 func TestWatchUpdate(t *testing.T) {
@@ -361,6 +428,8 @@ func testPopulateData(t *testing.T, db *MemDB) {
 	person2 := testPerson()
 	person2.First = "Mitchell"
 	person2.Last = "Hashimoto"
+	person2.LuckyAnimals = []string{"Sea horse"}
+	person2.LuckyNumbers = []int{912}
 	person2.Age = 27
 	person2.NegativeAge = -27
 
@@ -368,6 +437,8 @@ func testPopulateData(t *testing.T, db *MemDB) {
 	person3.First = "Alex"
 	person3.Last = "Dadgar"
 	person3.Age = 23
+	person3.LuckyAnimals = []string{"Cow"}
+	person3.LuckyNumbers = []int{1}
 	person3.NegativeAge = -23
 
 	person1.Sibling = person3
@@ -414,12 +485,14 @@ func noErr(t *testing.T, err error) {
 }
 
 type TestPerson struct {
-	ID          string
-	First       string
-	Last        string
-	Age         uint8
-	NegativeAge int8
-	Sibling     *TestPerson
+	ID           string
+	First        string
+	Last         string
+	Age          uint8
+	NegativeAge  int8
+	LuckyAnimals []string
+	LuckyNumbers []int
+	Sibling      *TestPerson
 }
 
 type TestPlace struct {
@@ -459,6 +532,16 @@ func testComplexSchema() *DBSchema {
 						Name:    "age",
 						Unique:  false,
 						Indexer: &UintFieldIndex{Field: "Age"},
+					},
+					"lucky_numbers": &IndexSchema{
+						Name:    "lucky_numbers",
+						Unique:  false,
+						Indexer: &IntSliceFieldIndex{Field: "LuckyNumbers"},
+					},
+					"lucky_animals": &IndexSchema{
+						Name:    "lucky_animals",
+						Unique:  false,
+						Indexer: &StringSliceFieldIndex{Field: "LuckyAnimals"},
 					},
 					"negative_age": &IndexSchema{
 						Name:    "negative_age",
@@ -543,11 +626,13 @@ func testComplexDB(t *testing.T) *MemDB {
 func testPerson() *TestPerson {
 	_, uuid := generateUUID()
 	obj := &TestPerson{
-		ID:          uuid,
-		First:       "Armon",
-		Last:        "Dadgar",
-		Age:         26,
-		NegativeAge: -26,
+		ID:           uuid,
+		First:        "Armon",
+		Last:         "Dadgar",
+		LuckyNumbers: []int{7, 42, 101},
+		LuckyAnimals: []string{"Dog", "Cat", "Giraffe"},
+		Age:          26,
+		NegativeAge:  -26,
 	}
 	return obj
 }
