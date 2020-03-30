@@ -744,6 +744,15 @@ func (txn *Txn) Changes() Changes {
 			// case it's different. Note that m is not a pointer so we are not
 			// modifying the txn.changeSet here - it's already a copy.
 			m.Before = mi.firstBefore
+
+			// Edge case - if the object was inserted and then eventually deleted in
+			// the same transaction, then the net affect on that key is a no-op. Don't
+			// emit a mutation with nil for before and after as it's meaningless and
+			// might violate expectations and cause a panic in code that assumes at
+			// least one must be set.
+			if m.Before == nil && m.After == nil {
+				continue
+			}
 			cs = append(cs, m)
 		}
 	}

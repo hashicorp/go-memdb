@@ -1711,6 +1711,27 @@ func TestTxn_Changes(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name:            "insert and then delete same item in one txn",
+			TrackingEnabled: true,
+			Mutate: func(t *testing.T, tx *Txn) {
+				// Insert a new row
+				err := tx.Insert("one", basicRows[0])
+				if err != nil {
+					t.Fatalf("Err: %s", err)
+				}
+				// Delete the same row again
+				err = tx.Delete("one", basicRows[0])
+				if err != nil {
+					t.Fatalf("Err: %s", err)
+				}
+			},
+			WantChanges: Changes{
+				// Whole transaction is a big no-op. Initial implementation missed this
+				// edge case and emitted a mutation where both before and after were nil
+				// which violates expectations in caller.
+			},
+		},
 	}
 
 	for _, tc := range cases {
