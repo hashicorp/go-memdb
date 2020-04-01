@@ -33,6 +33,7 @@ type TestObject struct {
 	Uint16   uint16
 	Uint32   uint32
 	Uint64   uint64
+	Bool     bool
 }
 
 func String(s string) *string {
@@ -65,6 +66,7 @@ func testObj() *TestObject {
 		Uint16: uint16(1<<16 - 1),
 		Uint32: uint32(1<<32 - 1),
 		Uint64: uint64(1<<64 - 1),
+		Bool:   false,
 	}
 	return obj
 }
@@ -131,8 +133,8 @@ func TestStringFieldIndex_FromObject(t *testing.T) {
 	if string(val) != "" {
 		t.Fatalf("bad: %s", val)
 	}
-	if !ok {
-		t.Fatalf("should be ok")
+	if ok {
+		t.Fatalf("should be not ok")
 	}
 }
 
@@ -893,6 +895,77 @@ func TestUintFieldIndex_FromArgs(t *testing.T) {
 	}
 	if !bytes.Equal(val, euint64) {
 		t.Fatalf("bad: %#v %#v", val, euint64)
+	}
+}
+
+func TestBoolFieldIndex_FromObject(t *testing.T) {
+	obj := testObj()
+	indexer := BoolFieldIndex{Field: "Bool"}
+
+	obj.Bool = false
+	ok, val, err := indexer.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+	if len(val) != 1 || val[0] != 0 {
+		t.Fatalf("bad: %v", val)
+	}
+
+	obj.Bool = true
+	ok, val, err = indexer.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+	if len(val) != 1 || val[0] != 1 {
+		t.Fatalf("bad: %v", val)
+	}
+
+	indexer = BoolFieldIndex{Field: "NA"}
+	ok, val, err = indexer.FromObject(obj)
+	if err == nil {
+		t.Fatalf("should get error")
+	}
+
+	indexer = BoolFieldIndex{Field: "ID"}
+	ok, val, err = indexer.FromObject(obj)
+	if err == nil {
+		t.Fatalf("should get error")
+	}
+}
+
+func TestBoolFieldIndex_FromArgs(t *testing.T) {
+	indexer := BoolFieldIndex{Field: "Bool"}
+
+	val, err := indexer.FromArgs()
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	val, err = indexer.FromArgs(42)
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	val, err = indexer.FromArgs(true)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(val) != 1 || val[0] != 1 {
+		t.Fatalf("bad: %v", val)
+	}
+
+	val, err = indexer.FromArgs(false)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(val) != 1 || val[0] != 0 {
+		t.Fatalf("bad: %v", val)
 	}
 }
 
