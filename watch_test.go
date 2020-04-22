@@ -164,14 +164,14 @@ func TestWatchChan(t *testing.T) {
 	for size := 0; size < 3*aFew; size++ {
 		// Fire each possible channel slot.
 		for fire := 0; fire < size; fire++ {
-			if err := testWatchChan(size, fire); err != nil {
+			if err := testWatchCh(size, fire); err != nil {
 				t.Fatalf("err %d %d: %v", size, fire, err)
 			}
 		}
 
 		// Run a timeout case as well.
 		fire := -1
-		if err := testWatchChan(size, fire); err != nil {
+		if err := testWatchCh(size, fire); err != nil {
 			t.Fatalf("err %d %d: %v", size, fire, err)
 		}
 	}
