@@ -67,6 +67,4 @@ workflows:
   test-and-build:
     jobs:
       - go-fmt-and-vet
-      - go-test:
-          requires:
-            - go-fmt-and-vet
+      - go-test
