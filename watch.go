@@ -128,8 +128,9 @@ func (w WatchSet) watchMany(ctx context.Context) error {
 	}
 }
 
-// WatchCh returns a channel that is used to wait for either the watch set
-// to trigger or for the context to be cancelled.
+// WatchCh returns a channel that is used to wait for either the watch set to trigger
+// or for the context to be cancelled. WatchCh creates a new goroutine each call, so
+// callers may need to cache the returned channel to avoid creating extra goroutines.
 func (w WatchSet) WatchCh(ctx context.Context) <-chan error {
 	// Create the outgoing channel
 	triggerCh := make(chan error, 1)
