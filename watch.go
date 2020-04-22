@@ -132,19 +132,11 @@ func (w WatchSet) watchMany(ctx context.Context) error {
 // to trigger or for the context to be cancelled.
 func (w WatchSet) WatchCh(ctx context.Context) <-chan error {
 	// Create the outgoing channel
-	triggerCh := make(chan error)
+	triggerCh := make(chan error, 1)
 
-	// Create a goroutine to collect the errors from WatchCtx
+	// Create a goroutine to collect the error from WatchCtx
 	go func() {
-		for {
-			err := w.WatchCtx(ctx)
-			triggerCh <- err
-
-			// Exit function if context is cancelled
-			if err != nil {
-				return
-			}
-		}
+		triggerCh <- w.WatchCtx(ctx)
 	}()
 
 	return triggerCh
