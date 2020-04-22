@@ -130,7 +130,7 @@ func (w WatchSet) watchMany(ctx context.Context) error {
 
 // WatchChan returns a channel that is used to wait for either the watch set
 // to trigger or for the context to be cancelled.
-func (w WatchSet) WatchChan(ctx context.Context) <-chan error {
+func (w WatchSet) WatchCh(ctx context.Context) <-chan error {
 	// Create the outgoing channel
 	triggerCh := make(chan error)
 
