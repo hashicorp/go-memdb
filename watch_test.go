@@ -106,7 +106,7 @@ func TestWatch(t *testing.T) {
 	t.Run("Context", testFactory(true))
 }
 
-func testWatchChan(size, fire int) error {
+func testWatchCh(size, fire int) error {
 	shouldTimeout := true
 	ws := NewWatchSet()
 	for i := 0; i < size; i++ {
@@ -123,7 +123,7 @@ func testWatchChan(size, fire int) error {
 
 	doneCh := make(chan bool, 1)
 	go func() {
-		err := <-ws.WatchChan(ctx)
+		err := <-ws.WatchCh(ctx)
 		doneCh <- err != nil
 	}()
 
