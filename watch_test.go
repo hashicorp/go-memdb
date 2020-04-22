@@ -106,6 +106,77 @@ func TestWatch(t *testing.T) {
 	t.Run("Context", testFactory(true))
 }
 
+func testWatchChan(size, fire int) error {
+	shouldTimeout := true
+	ws := NewWatchSet()
+	for i := 0; i < size; i++ {
+		watchCh := make(chan struct{})
+		ws.Add(watchCh)
+		if fire == i {
+			close(watchCh)
+			shouldTimeout = false
+		}
+	}
+
+	ctx, cancelFn := context.WithCancel(context.Background())
+	defer cancelFn()
+
+	doneCh := make(chan bool, 1)
+	go func() {
+		err := <-ws.WatchChan(ctx)
+		doneCh <- err != nil
+	}()
+
+	if shouldTimeout {
+		select {
+		case <-doneCh:
+			return fmt.Errorf("should not trigger")
+		default:
+		}
+
+		cancelFn()
+		select {
+		case didTimeout := <-doneCh:
+			if !didTimeout {
+				return fmt.Errorf("should have timed out")
+			}
+		case <-time.After(10 * time.Second):
+			return fmt.Errorf("should have timed out")
+		}
+	} else {
+		select {
+		case didTimeout := <-doneCh:
+			if didTimeout {
+				return fmt.Errorf("should not have timed out")
+			}
+		case <-time.After(10 * time.Second):
+			return fmt.Errorf("should have triggered")
+		}
+		cancelFn()
+	}
+	return nil
+}
+
+func TestWatchChan(t *testing.T) {
+
+	// Sweep through a bunch of chunks to hit the various cases of dividing
+	// the work into watchFew calls.
+	for size := 0; size < 3*aFew; size++ {
+		// Fire each possible channel slot.
+		for fire := 0; fire < size; fire++ {
+			if err := testWatchChan(size, fire); err != nil {
+				t.Fatalf("err %d %d: %v", size, fire, err)
+			}
+		}
+
+		// Run a timeout case as well.
+		fire := -1
+		if err := testWatchChan(size, fire); err != nil {
+			t.Fatalf("err %d %d: %v", size, fire, err)
+		}
+	}
+}
+
 func TestWatch_AddWithLimit(t *testing.T) {
 	// Make sure nil doesn't crash.
 	{
