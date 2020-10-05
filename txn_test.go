@@ -347,6 +347,110 @@ func TestTxn_First_MultiIndex_Multiple(t *testing.T) {
 	}
 }
 
+func TestTxn_Last_NonUnique_Multiple(t *testing.T) {
+	db := testDB(t)
+	txn := db.Txn(true)
+
+	obj := &TestObject{
+		ID:  "my-object",
+		Foo: "xyz",
+		Qux: []string{"abc1", "abc2"},
+	}
+	obj2 := &TestObject{
+		ID:  "my-cool-thing",
+		Foo: "abc",
+		Qux: []string{"xyz1", "xyz2"},
+	}
+	obj3 := &TestObject{
+		ID:  "my-other-cool-thing",
+		Foo: "abc",
+		Qux: []string{"xyz1", "xyz2", "xyz3"},
+	}
+
+	err := txn.Insert("main", obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	err = txn.Insert("main", obj2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	err = txn.Insert("main", obj3)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// The last object has a unique secondary value
+	raw, err := txn.Last("main", "foo", obj.Foo)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if raw != obj {
+		t.Fatalf("bad: %#v %#v", raw, obj)
+	}
+
+	// Second and third object share secondary value,
+	// but the primary ID of obj3 should be last
+	raw, err = txn.Last("main", "foo", obj3.Foo)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if raw != obj3 {
+		t.Fatalf("bad: %#v %#v", raw, obj3)
+	}
+}
+func TestTxn_Last_MultiIndex_Multiple(t *testing.T) {
+	db := testDB(t)
+	txn := db.Txn(true)
+
+	obj := &TestObject{
+		ID:  "my-object",
+		Foo: "abc",
+		Qux: []string{"abc1", "abc2"},
+	}
+	obj2 := &TestObject{
+		ID:  "my-cool-thing",
+		Foo: "xyz",
+		Qux: []string{"xyz1", "xyz2"},
+	}
+	obj3 := &TestObject{
+		ID:  "my-other-cool-thing",
+		Foo: "xyz",
+		Qux: []string{"xyz1", "xyz2", "zyx1"},
+	}
+
+	err := txn.Insert("main", obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	err = txn.Insert("main", obj2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	err = txn.Insert("main", obj3)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// The last object has a unique secondary value
+	raw, err := txn.Last("main", "qux", obj3.Qux[2])
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if raw != obj3 {
+		t.Fatalf("bad: %#v %#v", raw, obj)
+	}
+
+	// Second and third object share secondary value,
+	// but the primary ID of obj2 should be first
+	raw, err = txn.Last("main", "qux", obj3.Qux[0])
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if raw != obj3 {
+		t.Fatalf("bad: %#v %#v", raw, obj3)
+	}
+}
 func TestTxn_InsertDelete_Simple(t *testing.T) {
 	db := testDB(t)
 	txn := db.Txn(true)
@@ -530,6 +634,124 @@ func TestTxn_InsertGet_Simple(t *testing.T) {
 
 		if raw := result.Next(); raw != obj2 {
 			t.Fatalf("bad: %#v %#v", raw, obj2)
+		}
+
+		if raw := result.Next(); raw != nil {
+			t.Fatalf("bad: %#v %#v", raw, nil)
+		}
+	}
+
+	// Check the results within the txn
+	checkResult(txn)
+
+	// Commit and start a new read transaction
+	txn.Commit()
+	txn = db.Txn(false)
+
+	// Check the results in a new txn
+	checkResult(txn)
+}
+
+func TestTxn_InsertGetReverse_Simple(t *testing.T) {
+	db := testDB(t)
+	txn := db.Txn(true)
+
+	obj1 := &TestObject{
+		ID:  "my-cool-thing",
+		Foo: "xyz",
+		Qux: []string{"xyz1", "xyz2"},
+	}
+	obj2 := &TestObject{
+		ID:  "my-other-cool-thing",
+		Foo: "xyz",
+		Qux: []string{"xyz1"},
+	}
+
+	err := txn.Insert("main", obj1)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	err = txn.Insert("main", obj2)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	checkResult := func(txn *Txn) {
+		// Attempt a row scan on the ID
+		result, err := txn.GetReverse("main", "id")
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		if raw := result.Next(); raw != obj2 {
+			t.Fatalf("bad: %#v %#v", raw, obj2)
+		}
+
+		if raw := result.Next(); raw != obj1 {
+			t.Fatalf("bad: %#v %#v", raw, obj1)
+		}
+
+		if raw := result.Next(); raw != nil {
+			t.Fatalf("bad: %#v %#v", raw, nil)
+		}
+
+		// Attempt a row scan on the ID with specific ID
+		result, err = txn.GetReverse("main", "id", obj1.ID)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		if raw := result.Next(); raw != obj1 {
+			t.Fatalf("bad: %#v %#v", raw, obj1)
+		}
+
+		if raw := result.Next(); raw != nil {
+			t.Fatalf("bad: %#v %#v", raw, nil)
+		}
+
+		// Attempt a row scan secondary index
+		result, err = txn.GetReverse("main", "foo", obj2.Foo)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		if raw := result.Next(); raw != obj2 {
+			t.Fatalf("bad: %#v %#v", raw, obj2)
+		}
+
+		if raw := result.Next(); raw != obj1 {
+			t.Fatalf("bad: %#v %#v", raw, obj1)
+		}
+
+		if raw := result.Next(); raw != nil {
+			t.Fatalf("bad: %#v %#v", raw, nil)
+		}
+
+		// Attempt a row scan multi index
+		result, err = txn.GetReverse("main", "qux", obj2.Qux[0])
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		if raw := result.Next(); raw != obj2 {
+			t.Fatalf("bad: %#v %#v", raw, obj2)
+		}
+
+		if raw := result.Next(); raw != obj1 {
+			t.Fatalf("bad: %#v %#v", raw, obj1)
+		}
+
+		if raw := result.Next(); raw != nil {
+			t.Fatalf("bad: %#v %#v", raw, nil)
+		}
+
+		result, err = txn.GetReverse("main", "qux", obj1.Qux[1])
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		if raw := result.Next(); raw != obj1 {
+			t.Fatalf("bad: %#v %#v", raw, obj1)
 		}
 
 		if raw := result.Next(); raw != nil {
@@ -1228,6 +1450,99 @@ func TestTxn_LowerBound(t *testing.T) {
 			txn = db.Txn(false)
 			defer txn.Abort()
 			iterator, err := txn.LowerBound("main", "id", tc.Search)
+			if err != nil {
+				t.Fatalf("err lower bound: %s", err)
+			}
+
+			// Now range scan and built a result set
+			result := []TestObject{}
+			for obj := iterator.Next(); obj != nil; obj = iterator.Next() {
+				result = append(result, obj.(TestObject))
+			}
+
+			if !reflect.DeepEqual(result, tc.Want) {
+				t.Fatalf(" got: %#v\nwant: %#v", result, tc.Want)
+			}
+		})
+	}
+}
+
+func TestTxn_ReverseLowerBound(t *testing.T) {
+
+	basicRows := []TestObject{
+		{ID: "00101", Foo: "1", Qux: []string{"a"}},
+		{ID: "00102", Foo: "2", Qux: []string{"a"}},
+		{ID: "00104", Foo: "3", Qux: []string{"a"}},
+		{ID: "00105", Foo: "4", Qux: []string{"a"}},
+		{ID: "00110", Foo: "5", Qux: []string{"a"}},
+		{ID: "10010", Foo: "6", Qux: []string{"a"}},
+	}
+
+	reverse := func(rows []TestObject) []TestObject {
+		for i := 0; i < len(rows)/2; i++ {
+			j := len(rows) - i - 1
+			rows[i], rows[j] = rows[j], rows[i]
+		}
+		return rows
+	}
+
+	cases := []struct {
+		Name   string
+		Rows   []TestObject
+		Search string
+		Want   []TestObject
+	}{
+		{
+			Name:   "all",
+			Rows:   basicRows,
+			Search: "99999",
+			Want:   reverse(basicRows),
+		},
+		{
+			Name:   "subset existing bound",
+			Rows:   basicRows,
+			Search: "00105",
+			Want: []TestObject{
+				{ID: "00105", Foo: "4", Qux: []string{"a"}},
+				{ID: "00104", Foo: "3", Qux: []string{"a"}},
+				{ID: "00102", Foo: "2", Qux: []string{"a"}},
+				{ID: "00101", Foo: "1", Qux: []string{"a"}},
+			},
+		},
+		{
+			Name:   "subset non-existent bound",
+			Rows:   basicRows,
+			Search: "00103",
+			Want: []TestObject{
+				{ID: "00102", Foo: "2", Qux: []string{"a"}},
+				{ID: "00101", Foo: "1", Qux: []string{"a"}},
+			},
+		},
+		{
+			Name:   "empty subset",
+			Rows:   basicRows,
+			Search: "0",
+			Want:   []TestObject{},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			db := testDB(t)
+
+			txn := db.Txn(true)
+			for _, row := range tc.Rows {
+
+				err := txn.Insert("main", row)
+				if err != nil {
+					t.Fatalf("err inserting: %s", err)
+				}
+			}
+			txn.Commit()
+
+			txn = db.Txn(false)
+			defer txn.Abort()
+			iterator, err := txn.ReverseLowerBound("main", "id", tc.Search)
 			if err != nil {
 				t.Fatalf("err lower bound: %s", err)
 			}
