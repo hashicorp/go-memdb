@@ -399,6 +399,7 @@ func TestTxn_Last_NonUnique_Multiple(t *testing.T) {
 		t.Fatalf("bad: %#v %#v", raw, obj3)
 	}
 }
+
 func TestTxn_Last_MultiIndex_Multiple(t *testing.T) {
 	db := testDB(t)
 	txn := db.Txn(true)
