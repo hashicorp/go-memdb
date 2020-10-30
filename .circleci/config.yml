@@ -2,7 +2,7 @@ version: 2.1
 
 references:
   images:
-    go: &GOLANG_IMAGE circleci/golang:latest
+    go: &GOLANG_IMAGE docker.mirror.hashicorp.services/circleci/golang:1.15.3
 
 # reusable 'executor' object for jobs
 executors:
