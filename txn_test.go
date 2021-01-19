@@ -2178,3 +2178,60 @@ func TestTxn_Changes(t *testing.T) {
 		})
 	}
 }
+
+func TestTxn_GetIterAndDelete(t *testing.T) {
+	schema := &DBSchema{
+		Tables: map[string]*TableSchema{
+			"main": {
+				Name: "main",
+				Indexes: map[string]*IndexSchema{
+					"id": {
+						Name:    "id",
+						Unique:  true,
+						Indexer: &StringFieldIndex{Field: "ID"},
+					},
+					"foo": {
+						Name:    "foo",
+						Indexer: &StringFieldIndex{Field: "Foo"},
+					},
+				},
+			},
+		},
+	}
+	db, err := NewMemDB(schema)
+	assertNilError(t, err)
+
+	key := "aaaa"
+	txn := db.Txn(true)
+	assertNilError(t, txn.Insert("main", &TestObject{ID: "1", Foo: key}))
+	assertNilError(t, txn.Insert("main", &TestObject{ID: "123", Foo: key}))
+	assertNilError(t, txn.Insert("main", &TestObject{ID: "2", Foo: key}))
+	txn.Commit()
+
+	txn = db.Txn(true)
+	iter, err := txn.Get("main", "foo", key)
+	assertNilError(t, err)
+
+	for obj := iter.Next(); obj != nil; obj = iter.Next() {
+		id := obj.(*TestObject).ID
+		if id == "123" {
+			assertNilError(t, txn.Delete("main", obj))
+		}
+	}
+
+	iter, err = txn.Get("main", "foo", key)
+	assertNilError(t, err)
+
+	for obj := iter.Next(); obj != nil; obj = iter.Next() {
+		assertNilError(t, txn.Delete("main", obj))
+	}
+
+	txn.Commit()
+}
+
+func assertNilError(t *testing.T, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+}
