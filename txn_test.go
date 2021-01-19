@@ -2209,17 +2209,10 @@ func TestTxn_GetIterAndDelete(t *testing.T) {
 	txn.Commit()
 
 	txn = db.Txn(true)
+	// Delete something
+	assertNilError(t, txn.Delete("main", &TestObject{ID: "123", Foo: key}))
+
 	iter, err := txn.Get("main", "foo", key)
-	assertNilError(t, err)
-
-	for obj := iter.Next(); obj != nil; obj = iter.Next() {
-		id := obj.(*TestObject).ID
-		if id == "123" {
-			assertNilError(t, txn.Delete("main", obj))
-		}
-	}
-
-	iter, err = txn.Get("main", "foo", key)
 	assertNilError(t, err)
 
 	for obj := iter.Next(); obj != nil; obj = iter.Next() {
