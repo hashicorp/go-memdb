@@ -872,7 +872,7 @@ func (txn *Txn) getIndexIterator(table, index string, args ...interface{}) (*ira
 	indexTxn := txn.readableIndex(table, indexSchema.Name)
 	indexRoot := indexTxn.Root()
 
-	// Get an interator over the index
+	// Get an iterator over the index
 	indexIter := indexRoot.Iterator()
 	return indexIter, val, nil
 }
