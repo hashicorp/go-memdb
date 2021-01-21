@@ -663,15 +663,29 @@ func (txn *Txn) getIndexValue(table, index string, args ...interface{}) (*IndexS
 	return indexSchema, val, err
 }
 
-// ResultIterator is used to iterate over a list of results
-// from a Get query on a table.
+// ResultIterator is used to iterate over a list of results from a query.
+//
+// Once a ResultIterator has been created it is no longer safe to modify
+// (Insert or Delete) the table that ResultIterator is using. If any modifications
+// are made to the table, subsequent calls to Next may panic or return unexpected
+// values.
+//
+// To safely use a ResultIterator with a write transaction always capture the
+// results of the iteration in a slice or map, then perform any modifications
+// after the final call to Next.
 type ResultIterator interface {
 	WatchCh() <-chan struct{}
+	// Next returns the next result from the iterator. If there are no more results
+	// nil is returned.
+	// If any modification (Insert or Delete) is made to the table after the
+	// ResultIterator is created, Next may panic or return unexpected values.
 	Next() interface{}
 }
 
-// Get is used to construct a ResultIterator over all the
-// rows that match the given constraints of an index.
+// Get is used to construct a ResultIterator over all the  rows that match the
+// given constraints of an index.
+// See the documentation for ResultIterator for correct usage of the returned
+// ResultIterator.
 func (txn *Txn) Get(table, index string, args ...interface{}) (ResultIterator, error) {
 	indexIter, val, err := txn.getIndexIterator(table, index, args...)
 	if err != nil {
@@ -691,7 +705,9 @@ func (txn *Txn) Get(table, index string, args ...interface{}) (ResultIterator, e
 
 // GetReverse is used to construct a Reverse ResultIterator over all the
 // rows that match the given constraints of an index.
-// The returned ResultIterator's Next() will return the next Previous value
+// The returned ResultIterator's Next() will return the Previous value.
+// See the documentation for ResultIterator for correct usage of the returned
+// ResultIterator.
 func (txn *Txn) GetReverse(table, index string, args ...interface{}) (ResultIterator, error) {
 	indexIter, val, err := txn.getIndexIteratorReverse(table, index, args...)
 	if err != nil {
@@ -715,6 +731,9 @@ func (txn *Txn) GetReverse(table, index string, args ...interface{}) (ResultIter
 // range scans within an index. It is not possible to watch the resulting
 // iterator since the radix tree doesn't efficiently allow watching on lower
 // bound changes. The WatchCh returned will be nill and so will block forever.
+//
+// See the documentation for ResultIterator for correct usage of the returned
+// ResultIterator.
 func (txn *Txn) LowerBound(table, index string, args ...interface{}) (ResultIterator, error) {
 	indexIter, val, err := txn.getIndexIterator(table, index, args...)
 	if err != nil {
@@ -738,6 +757,9 @@ func (txn *Txn) LowerBound(table, index string, args ...interface{}) (ResultIter
 // resulting iterator since the radix tree doesn't efficiently allow watching
 // on lower bound changes. The WatchCh returned will be nill and so will block
 // forever.
+//
+// See the documentation for ResultIterator for correct usage of the returned
+// ResultIterator.
 func (txn *Txn) ReverseLowerBound(table, index string, args ...interface{}) (ResultIterator, error) {
 	indexIter, val, err := txn.getIndexIteratorReverse(table, index, args...)
 	if err != nil {
