@@ -2215,11 +2215,26 @@ func TestTxn_GetIterAndDelete(t *testing.T) {
 	iter, err := txn.Get("main", "foo", key)
 	assertNilError(t, err)
 
-	for obj := iter.Next(); obj != nil; obj = iter.Next() {
-		assertNilError(t, txn.Delete("main", obj))
+	// Modify the table after the iterator is created.
+	assertNilError(t, txn.Insert("main", &TestObject{ID: "3", Foo: key}))
+
+	var panicMsg interface{}
+	func() {
+		defer func() {
+			panicMsg = recover()
+		}()
+		_ = iter.Next()
+	}()
+
+	msg, ok := panicMsg.(string)
+	if !ok {
+		t.Fatal("expected iter.Next() to panic")
 	}
 
-	txn.Commit()
+	expected := "unsafe call to ResultIterator.Next"
+	if !strings.HasPrefix(msg, expected) {
+		t.Fatalf("expected panic with message %v, got %v", expected, msg)
+	}
 }
 
 func assertNilError(t *testing.T, err error) {

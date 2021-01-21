@@ -687,18 +687,21 @@ type ResultIterator interface {
 // See the documentation for ResultIterator for correct usage of the returned
 // ResultIterator.
 func (txn *Txn) Get(table, index string, args ...interface{}) (ResultIterator, error) {
-	indexIter, val, err := txn.getIndexIterator(table, index, args...)
+	indexTxn, val, err := txn.getIndexTxn(table, index, args...)
 	if err != nil {
 		return nil, err
 	}
 
+	indexIter := indexTxn.Root().Iterator()
+
 	// Seek the iterator to the appropriate sub-set
 	watchCh := indexIter.SeekPrefixWatch(val)
 
-	// Create an iterator
 	iter := &radixIterator{
-		iter:    indexIter,
-		watchCh: watchCh,
+		txn:         indexTxn,
+		modifyIndex: indexTxn.ModifyIndex(),
+		iter:        indexIter,
+		watchCh:     watchCh,
 	}
 	return iter, nil
 }
@@ -730,22 +733,25 @@ func (txn *Txn) GetReverse(table, index string, args ...interface{}) (ResultIter
 // Calling this then iterating until the rows are larger than required allows
 // range scans within an index. It is not possible to watch the resulting
 // iterator since the radix tree doesn't efficiently allow watching on lower
-// bound changes. The WatchCh returned will be nill and so will block forever.
+// bound changes. The WatchCh returned will be nil and so will block forever.
 //
 // See the documentation for ResultIterator for correct usage of the returned
 // ResultIterator.
 func (txn *Txn) LowerBound(table, index string, args ...interface{}) (ResultIterator, error) {
-	indexIter, val, err := txn.getIndexIterator(table, index, args...)
+	indexTxn, val, err := txn.getIndexTxn(table, index, args...)
 	if err != nil {
 		return nil, err
 	}
 
+	indexIter := indexTxn.Root().Iterator()
+
 	// Seek the iterator to the appropriate sub-set
 	indexIter.SeekLowerBound(val)
 
-	// Create an iterator
 	iter := &radixIterator{
-		iter: indexIter,
+		txn:         indexTxn,
+		modifyIndex: indexTxn.ModifyIndex(),
+		iter:        indexIter,
 	}
 	return iter, nil
 }
@@ -861,7 +867,7 @@ func (txn *Txn) Changes() Changes {
 	return cs
 }
 
-func (txn *Txn) getIndexIterator(table, index string, args ...interface{}) (*iradix.Iterator, []byte, error) {
+func (txn *Txn) getIndexTxn(table, index string, args ...interface{}) (*iradix.Txn, []byte, error) {
 	// Get the index value to scan
 	indexSchema, val, err := txn.getIndexValue(table, index, args...)
 	if err != nil {
@@ -870,11 +876,7 @@ func (txn *Txn) getIndexIterator(table, index string, args ...interface{}) (*ira
 
 	// Get the index itself
 	indexTxn := txn.readableIndex(table, indexSchema.Name)
-	indexRoot := indexTxn.Root()
-
-	// Get an iterator over the index
-	indexIter := indexRoot.Iterator()
-	return indexIter, val, nil
+	return indexTxn, val, nil
 }
 
 func (txn *Txn) getIndexIteratorReverse(table, index string, args ...interface{}) (*iradix.ReverseIterator, []byte, error) {
@@ -905,8 +907,10 @@ func (txn *Txn) Defer(fn func()) {
 // This is much more efficient than a sliceIterator as we are not
 // materializing the entire view.
 type radixIterator struct {
-	iter    *iradix.Iterator
-	watchCh <-chan struct{}
+	txn         *iradix.Txn
+	iter        *iradix.Iterator
+	watchCh     <-chan struct{}
+	modifyIndex int64
 }
 
 func (r *radixIterator) WatchCh() <-chan struct{} {
@@ -914,6 +918,9 @@ func (r *radixIterator) WatchCh() <-chan struct{} {
 }
 
 func (r *radixIterator) Next() interface{} {
+	if r.modifyIndex != r.txn.ModifyIndex() {
+		panic("unsafe call to ResultIterator.Next, Txn has modifications after iteration creation")
+	}
 	_, value, ok := r.iter.Next()
 	if !ok {
 		return nil
