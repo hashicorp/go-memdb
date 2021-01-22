@@ -61,7 +61,7 @@ func (txn *Txn) readableIndex(table, index string) *iradix.Txn {
 		key := tableIndex{table, index}
 		exist, ok := txn.modified[key]
 		if ok {
-			return exist
+			return exist.Clone()
 		}
 	}
 
