@@ -38,6 +38,8 @@ type Txn struct {
 	changes Changes
 
 	modified map[tableIndex]*iradix.Txn
+
+	activeIterators int64
 }
 
 // TrackChanges enables change tracking for the transaction. If called at any
@@ -175,6 +177,9 @@ func (txn *Txn) Insert(table string, obj interface{}) error {
 	if !txn.write {
 		return fmt.Errorf("cannot insert in read-only transaction")
 	}
+	if err := txn.checkActiveIterator(); err != nil {
+		return fmt.Errorf("insert %w", err)
+	}
 
 	// Get the table schema
 	tableSchema, ok := txn.db.schema.Tables[table]
@@ -299,6 +304,9 @@ func (txn *Txn) Delete(table string, obj interface{}) error {
 	if !txn.write {
 		return fmt.Errorf("cannot delete in read-only transaction")
 	}
+	if err := txn.checkActiveIterator(); err != nil {
+		return fmt.Errorf("delete %w", err)
+	}
 
 	// Get the table schema
 	tableSchema, ok := txn.db.schema.Tables[table]
@@ -375,6 +383,9 @@ func (txn *Txn) Delete(table string, obj interface{}) error {
 func (txn *Txn) DeletePrefix(table string, prefix_index string, prefix string) (bool, error) {
 	if !txn.write {
 		return false, fmt.Errorf("cannot delete in read-only transaction")
+	}
+	if err := txn.checkActiveIterator(); err != nil {
+		return false, fmt.Errorf("delete prefix %w", err)
 	}
 
 	if !strings.HasSuffix(prefix_index, "_prefix") {
@@ -477,6 +488,9 @@ func (txn *Txn) DeletePrefix(table string, prefix_index string, prefix string) (
 func (txn *Txn) DeleteAll(table, index string, args ...interface{}) (int, error) {
 	if !txn.write {
 		return 0, fmt.Errorf("cannot delete in read-only transaction")
+	}
+	if err := txn.checkActiveIterator(); err != nil {
+		return 0, fmt.Errorf("delete all %w", err)
 	}
 
 	// Get all the objects
@@ -680,6 +694,12 @@ type ResultIterator interface {
 	// If any modification (Insert or Delete) is made to the table after the
 	// ResultIterator is created, Next may panic or return unexpected values.
 	Next() interface{}
+	// Done should be called to inform the transaction that the iteration will
+	// no longer be used. Done is automatically called by Next before returning nil,
+	// so it only needs to be called in any cases where the iteration may not be
+	// exhausted.
+	// It is safe to call Done multiple times.
+	Done()
 }
 
 // Get is used to construct a ResultIterator over all the  rows that match the
@@ -697,10 +717,29 @@ func (txn *Txn) Get(table, index string, args ...interface{}) (ResultIterator, e
 
 	// Create an iterator
 	iter := &radixIterator{
+		done:    txn.trackIterator(),
 		iter:    indexIter,
 		watchCh: watchCh,
 	}
 	return iter, nil
+}
+
+func (txn *Txn) trackIterator() func() {
+	txn.activeIterators++
+	var called bool
+	return func() {
+		if !called {
+			called = true
+			txn.activeIterators--
+		}
+	}
+}
+
+func (txn *Txn) checkActiveIterator() error {
+	if txn.activeIterators > 0 {
+		return fmt.Errorf("operation is not safe from within a ResultIteration.Next loop")
+	}
+	return nil
 }
 
 // GetReverse is used to construct a Reverse ResultIterator over all the
@@ -719,6 +758,7 @@ func (txn *Txn) GetReverse(table, index string, args ...interface{}) (ResultIter
 
 	// Create an iterator
 	iter := &radixReverseIterator{
+		done:    txn.trackIterator(),
 		iter:    indexIter,
 		watchCh: watchCh,
 	}
@@ -745,6 +785,7 @@ func (txn *Txn) LowerBound(table, index string, args ...interface{}) (ResultIter
 
 	// Create an iterator
 	iter := &radixIterator{
+		done: txn.trackIterator(),
 		iter: indexIter,
 	}
 	return iter, nil
@@ -771,6 +812,7 @@ func (txn *Txn) ReverseLowerBound(table, index string, args ...interface{}) (Res
 
 	// Create an iterator
 	iter := &radixReverseIterator{
+		done: txn.trackIterator(),
 		iter: indexIter,
 	}
 	return iter, nil
@@ -907,6 +949,11 @@ func (txn *Txn) Defer(fn func()) {
 type radixIterator struct {
 	iter    *iradix.Iterator
 	watchCh <-chan struct{}
+	done    func()
+}
+
+func (r *radixIterator) Done() {
+	r.done()
 }
 
 func (r *radixIterator) WatchCh() <-chan struct{} {
@@ -916,6 +963,7 @@ func (r *radixIterator) WatchCh() <-chan struct{} {
 func (r *radixIterator) Next() interface{} {
 	_, value, ok := r.iter.Next()
 	if !ok {
+		r.Done()
 		return nil
 	}
 	return value
@@ -924,11 +972,17 @@ func (r *radixIterator) Next() interface{} {
 type radixReverseIterator struct {
 	iter    *iradix.ReverseIterator
 	watchCh <-chan struct{}
+	done    func()
+}
+
+func (r *radixReverseIterator) Done() {
+	r.done()
 }
 
 func (r *radixReverseIterator) Next() interface{} {
 	_, value, ok := r.iter.Previous()
 	if !ok {
+		r.Done()
 		return nil
 	}
 	return value

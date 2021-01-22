@@ -2215,8 +2215,11 @@ func TestTxn_GetIterAndDelete(t *testing.T) {
 	iter, err := txn.Get("main", "foo", key)
 	assertNilError(t, err)
 
-	for obj := iter.Next(); obj != nil; obj = iter.Next() {
-		assertNilError(t, txn.Delete("main", obj))
+	obj := iter.Next()
+	err = txn.Delete("main", obj)
+	expected := "operation is not safe"
+	if err == nil || !strings.Contains(err.Error(), expected) {
+		t.Fatalf("expected error with %v, got %v", expected, err)
 	}
 
 	txn.Commit()

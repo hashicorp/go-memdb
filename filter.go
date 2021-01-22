@@ -13,6 +13,10 @@ type FilterIterator struct {
 	iter ResultIterator
 }
 
+func (f *FilterIterator) Done() {
+	f.iter.Done()
+}
+
 // NewFilterIterator wraps a ResultIterator. The filter function is applied
 // to each value returned from a call to wrap.Next().
 //
