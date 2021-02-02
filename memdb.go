@@ -20,7 +20,7 @@ import (
 //
 // Objects inserted into MemDB are not copied. It is **extremely important**
 // that objects are not modified in-place after they are inserted since they
-// are stored directly in MemDB. It remains unsafe to modify existing values
+// are stored directly in MemDB. It remains unsafe to modify inserted objects
 // even after they've been deleted from MemDB since there may still be older
 // snapshots of the DB being read from other goroutines.
 type MemDB struct {
