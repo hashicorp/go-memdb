@@ -522,6 +522,10 @@ func (txn *Txn) DeleteAll(table, index string, args ...interface{}) (int, error)
 // has updated the result of the query. Since each read transaction
 // operates on an isolated snapshot, a new read transaction must be
 // started to observe the changes that have been made.
+//
+// If the value of index ends with "_prefix", FirstWatch will perform a prefix
+// match instead of full match on the index. The registered indexer must implement
+// PrefixIndexer, otherwise an error is returned.
 func (txn *Txn) FirstWatch(table, index string, args ...interface{}) (<-chan struct{}, interface{}, error) {
 	// Get the index value
 	indexSchema, val, err := txn.getIndexValue(table, index, args...)
@@ -558,6 +562,10 @@ func (txn *Txn) FirstWatch(table, index string, args ...interface{}) (<-chan str
 // has updated the result of the query. Since each read transaction
 // operates on an isolated snapshot, a new read transaction must be
 // started to observe the changes that have been made.
+//
+// If the value of index ends with "_prefix", LastWatch will perform a prefix
+// match instead of full match on the index. The registered indexer must implement
+// PrefixIndexer, otherwise an error is returned.
 func (txn *Txn) LastWatch(table, index string, args ...interface{}) (<-chan struct{}, interface{}, error) {
 	// Get the index value
 	indexSchema, val, err := txn.getIndexValue(table, index, args...)
@@ -750,6 +758,7 @@ func (txn *Txn) Get(table, index string, args ...interface{}) (ResultIterator, e
 // The returned ResultIterator's Next() will return the next Previous value.
 //
 // See the documentation on Get for details on arguments.
+//
 // See the documentation for ResultIterator to understand the behaviour of the
 // returned ResultIterator.
 func (txn *Txn) GetReverse(table, index string, args ...interface{}) (ResultIterator, error) {
@@ -775,6 +784,10 @@ func (txn *Txn) GetReverse(table, index string, args ...interface{}) (ResultIter
 // range scans within an index. It is not possible to watch the resulting
 // iterator since the radix tree doesn't efficiently allow watching on lower
 // bound changes. The WatchCh returned will be nill and so will block forever.
+//
+// If the value of index ends with "_prefix", LowerBound will perform a prefix match instead of
+// a full match on the index. The registered index must implement PrefixIndexer,
+// otherwise an error is returned.
 //
 // See the documentation for ResultIterator to understand the behaviour of the
 // returned ResultIterator.
