@@ -170,7 +170,11 @@ func (txn *Txn) Commit() {
 	}
 }
 
-// Insert is used to add or update an object into the given table
+// Insert is used to add or update an object into the given table.
+//
+// When updating an object, the obj provided should be a copy rather
+// than a value updated in-place. Modifying values in-place that are already
+// inserted into MemDB is not supported behavior.
 func (txn *Txn) Insert(table string, obj interface{}) error {
 	if !txn.write {
 		return fmt.Errorf("cannot insert in read-only transaction")
@@ -293,8 +297,8 @@ func (txn *Txn) Insert(table string, obj interface{}) error {
 	return nil
 }
 
-// Delete is used to delete a single object from the given table
-// This object must already exist in the table
+// Delete is used to delete a single object from the given table.
+// This object must already exist in the table.
 func (txn *Txn) Delete(table string, obj interface{}) error {
 	if !txn.write {
 		return fmt.Errorf("cannot delete in read-only transaction")
@@ -688,7 +692,14 @@ type ResultIterator interface {
 }
 
 // Get is used to construct a ResultIterator over all the rows that match the
-// given constraints of an index.
+// given constraints of an index. The index values must match exactly (this
+// is not a range-based or prefix-based lookup) by default.
+//
+// Prefix lookups: if the named index implements PrefixIndexer, you may perform
+// prefix-based lookups by appending "_prefix" to the index name. In this
+// scenario, the index values given in args are treated as prefix lookups. For
+// example, a StringFieldIndex will match any string with the given value
+// as a prefix: "mem" matches "memdb".
 //
 // See the documentation for ResultIterator to understand the behaviour of the
 // returned ResultIterator.
@@ -713,6 +724,7 @@ func (txn *Txn) Get(table, index string, args ...interface{}) (ResultIterator, e
 // rows that match the given constraints of an index.
 // The returned ResultIterator's Next() will return the next Previous value.
 //
+// See the documentation on Get for details on arguments.
 // See the documentation for ResultIterator to understand the behaviour of the
 // returned ResultIterator.
 func (txn *Txn) GetReverse(table, index string, args ...interface{}) (ResultIterator, error) {
