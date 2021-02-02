@@ -510,6 +510,9 @@ func (txn *Txn) DeleteAll(table, index string, args ...interface{}) (int, error)
 
 // FirstWatch is used to return the first matching object for
 // the given constraints on the index along with the watch channel
+//
+// If the value of index ends with "_prefix", FirstWatch will perform a prefix match instead of
+// a full match on the index. The registered index must implement PrefixIndexer.
 func (txn *Txn) FirstWatch(table, index string, args ...interface{}) (<-chan struct{}, interface{}, error) {
 	// Get the index value
 	indexSchema, val, err := txn.getIndexValue(table, index, args...)
@@ -538,6 +541,9 @@ func (txn *Txn) FirstWatch(table, index string, args ...interface{}) (<-chan str
 
 // LastWatch is used to return the last matching object for
 // the given constraints on the index along with the watch channel
+//
+// If the value of index ends with "_prefix", LastWatch will perform a prefix match instead of
+// a full match on the index. The registered index must implement PrefixIndexer.
 func (txn *Txn) LastWatch(table, index string, args ...interface{}) (<-chan struct{}, interface{}, error) {
 	// Get the index value
 	indexSchema, val, err := txn.getIndexValue(table, index, args...)
@@ -690,6 +696,9 @@ type ResultIterator interface {
 // Get is used to construct a ResultIterator over all the rows that match the
 // given constraints of an index.
 //
+// If the value of index ends with "_prefix", Get will perform a prefix match instead of
+// a full match on the index. The registered index must implement PrefixIndexer.
+//
 // See the documentation for ResultIterator to understand the behaviour of the
 // returned ResultIterator.
 func (txn *Txn) Get(table, index string, args ...interface{}) (ResultIterator, error) {
@@ -712,6 +721,9 @@ func (txn *Txn) Get(table, index string, args ...interface{}) (ResultIterator, e
 // GetReverse is used to construct a Reverse ResultIterator over all the
 // rows that match the given constraints of an index.
 // The returned ResultIterator's Next() will return the next Previous value.
+//
+// If the value of index ends with "_prefix", GetReverse will perform a prefix match instead of
+// a full match on the index. The registered index must implement PrefixIndexer.
 //
 // See the documentation for ResultIterator to understand the behaviour of the
 // returned ResultIterator.
@@ -738,6 +750,9 @@ func (txn *Txn) GetReverse(table, index string, args ...interface{}) (ResultIter
 // range scans within an index. It is not possible to watch the resulting
 // iterator since the radix tree doesn't efficiently allow watching on lower
 // bound changes. The WatchCh returned will be nill and so will block forever.
+//
+// If the value of index ends with "_prefix", LowerBound will perform a prefix match instead of
+// a full match on the index. The registered index must implement PrefixIndexer.
 //
 // See the documentation for ResultIterator to understand the behaviour of the
 // returned ResultIterator.
