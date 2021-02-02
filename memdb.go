@@ -22,7 +22,7 @@ import (
 // that objects are not modified in-place after they are inserted since they
 // are stored directly in MemDB. It remains unsafe to modify existing values
 // even after they've been deleted from MemDB since there may still be older
-// snapshots of the DB with readers that have access to the object.
+// snapshots of the DB being read from other goroutines.
 type MemDB struct {
 	schema  *DBSchema
 	root    unsafe.Pointer // *iradix.Tree underneath
