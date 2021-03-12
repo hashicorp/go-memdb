@@ -753,16 +753,16 @@ func TestIntFieldIndex_FromArgs(t *testing.T) {
 func TestUintFieldIndex_FromObject(t *testing.T) {
 	obj := testObj()
 
-	euint := make([]byte, 10)
-	euint8 := make([]byte, 2)
-	euint16 := make([]byte, 3)
-	euint32 := make([]byte, 5)
-	euint64 := make([]byte, 10)
-	binary.PutUvarint(euint, uint64(obj.Uint))
-	binary.PutUvarint(euint8, uint64(obj.Uint8))
-	binary.PutUvarint(euint16, uint64(obj.Uint16))
-	binary.PutUvarint(euint32, uint64(obj.Uint32))
-	binary.PutUvarint(euint64, obj.Uint64)
+	euint := make([]byte, 8)
+	euint8 := make([]byte, 1)
+	euint16 := make([]byte, 2)
+	euint32 := make([]byte, 4)
+	euint64 := make([]byte, 8)
+	binary.BigEndian.PutUint64(euint, uint64(obj.Uint))
+	euint8[0] = obj.Uint8
+	binary.BigEndian.PutUint16(euint16, obj.Uint16)
+	binary.BigEndian.PutUint32(euint32, obj.Uint32)
+	binary.BigEndian.PutUint64(euint64, obj.Uint64)
 
 	cases := []struct {
 		Field         string
@@ -846,16 +846,16 @@ func TestUintFieldIndex_FromArgs(t *testing.T) {
 	}
 
 	obj := testObj()
-	euint := make([]byte, 10)
-	euint8 := make([]byte, 2)
-	euint16 := make([]byte, 3)
-	euint32 := make([]byte, 5)
-	euint64 := make([]byte, 10)
-	binary.PutUvarint(euint, uint64(obj.Uint))
-	binary.PutUvarint(euint8, uint64(obj.Uint8))
-	binary.PutUvarint(euint16, uint64(obj.Uint16))
-	binary.PutUvarint(euint32, uint64(obj.Uint32))
-	binary.PutUvarint(euint64, obj.Uint64)
+	euint := make([]byte, 8)
+	euint8 := make([]byte, 1)
+	euint16 := make([]byte, 2)
+	euint32 := make([]byte, 4)
+	euint64 := make([]byte, 8)
+	binary.BigEndian.PutUint64(euint, uint64(obj.Uint))
+	euint8[0] = obj.Uint8
+	binary.BigEndian.PutUint16(euint16, obj.Uint16)
+	binary.BigEndian.PutUint32(euint32, obj.Uint32)
+	binary.BigEndian.PutUint64(euint64, obj.Uint64)
 
 	val, err := indexer.FromArgs(obj.Uint)
 	if err != nil {
@@ -895,6 +895,58 @@ func TestUintFieldIndex_FromArgs(t *testing.T) {
 	}
 	if !bytes.Equal(val, euint64) {
 		t.Fatalf("bad: %#v %#v", val, euint64)
+	}
+}
+
+func TestUIntFieldIndexSortability(t *testing.T) {
+	testCases := []struct {
+		u8l      uint8
+		u8r      uint8
+		u16l     uint16
+		u16r     uint16
+		u32l     uint32
+		u32r     uint32
+		u64l     uint64
+		u64r     uint64
+		ul       uint
+		ur       uint
+		expected int
+		name     string
+	}{
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "zero"},
+		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, "small eq"},
+		{0, 1, 0, 1, 0, 1, 0, 1, 0, 1, -1, "small lt"},
+		{2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1, "small gt"},
+		{100, 200, 1000, 2000, 1000000000, 2000000000, 10000000000, 20000000000, 1000000000, 2000000000, -1, "large lt"},
+		{100, 99, 1000, 999, 1000000000, 999999999, 10000000000, 9999999999, 1000000000, 999999999, 1, "large gt"},
+		{127, 128, 255, 256, 65535, 65536, 4294967295, 4294967296, 65535, 65536, -1, "edge conditions"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			compareEncoded(t, tc.u8l, tc.u8r, tc.expected)
+			compareEncoded(t, tc.u16l, tc.u16r, tc.expected)
+			compareEncoded(t, tc.u32l, tc.u32r, tc.expected)
+			compareEncoded(t, tc.u64l, tc.u64r, tc.expected)
+			compareEncoded(t, tc.ul, tc.ur, tc.expected)
+		})
+	}
+}
+
+func compareEncoded(t *testing.T, l interface{}, r interface{}, expected int) {
+	indexer := UintFieldIndex{"Foo"}
+
+	lBytes, err := indexer.FromArgs(l)
+	if err != nil {
+		t.Fatalf("unable to encode: %d", l)
+	}
+	rBytes, err := indexer.FromArgs(r)
+	if err != nil {
+		t.Fatalf("unable to encode: %d", r)
+	}
+
+	if bytes.Compare(lBytes, rBytes) != expected {
+		t.Fatalf("Compare(%#v, %#v) != %d", lBytes, rBytes, expected)
 	}
 }
 
