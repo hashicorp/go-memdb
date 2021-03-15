@@ -1,0 +1,12 @@
+<span>Table:&nbsp;</span>
+<span>
+    <select name="select-table" id="select-table">
+        {{ range .tables }}
+            {{ if eq $.params.GetTableName . }}
+                <option value="{{ . }}" selected >{{ . }}</option>
+            {{ else }}
+                <option value="{{ . }}">{{ . }}</option>
+            {{ end }}
+        {{ end }}
+    </select>
+</span>
