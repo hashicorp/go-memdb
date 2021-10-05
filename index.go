@@ -821,7 +821,9 @@ forloop:
 		if depth == len(builder)-1 {
 			// These are the "leaves", so append directly
 			for _, v := range builder[depth] {
-				out = append(out, append(currPrefix, v...))
+				outcome := make([]byte, len(currPrefix))
+				copy(outcome, currPrefix)
+				out = append(out, append(outcome, v...))
 			}
 			return
 		}
