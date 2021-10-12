@@ -5,6 +5,7 @@ import (
 	crand "crypto/rand"
 	"encoding/binary"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -1312,5 +1313,46 @@ func TestCompoundIndex_PrefixFromArgs(t *testing.T) {
 	_, err = indexer.PrefixFromArgs(uuid, "foo", "bar", "nope")
 	if err == nil {
 		t.Fatalf("expected an error when passing too many arguments")
+	}
+}
+
+func TestCompoundMultiIndex_FromObject(t *testing.T) {
+	// handle sub-indexer case unique to MultiIndexer
+	obj := &TestObject{
+		ID:       "obj1-uuid",
+		Foo:      "Foo1",
+		Baz:      "yep",
+		Qux:      []string{"Test", "Test2"},
+		QuxEmpty: []string{"Qux", "Qux2"},
+	}
+	indexer := &CompoundMultiIndex{
+		Indexes: []Indexer{
+			&StringFieldIndex{Field: "Foo"},
+			&StringSliceFieldIndex{Field: "Qux"},
+			&StringSliceFieldIndex{Field: "QuxEmpty"},
+		},
+	}
+
+	ok, vals, err := indexer.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+	// this goes in between each index prefix to compare them correctly
+	nilb := string([]byte{0})
+	want := []string{
+		"Foo1" + nilb + "Test" + nilb + "Qux" + nilb,
+		"Foo1" + nilb + "Test" + nilb + "Qux2" + nilb,
+		"Foo1" + nilb + "Test2" + nilb + "Qux" + nilb,
+		"Foo1" + nilb + "Test2" + nilb + "Qux2" + nilb,
+	}
+	got := make([]string, len(vals))
+	for i, v := range vals {
+		got[i] = string(v)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("\ngot:  %+v\nwant: %+v\n", got, want)
 	}
 }
