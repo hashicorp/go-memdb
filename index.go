@@ -767,8 +767,6 @@ type CompoundMultiIndex struct {
 func (c *CompoundMultiIndex) FromObject(raw interface{}) (bool, [][]byte, error) {
 	// At each entry, builder is storing the results from the next index
 	builder := make([][][]byte, 0, len(c.Indexes))
-	// Start with something higher to avoid resizing if possible
-	out := make([][]byte, 0, len(c.Indexes)^3)
 
 forloop:
 	// This loop goes through each indexer and adds the value(s) provided to the next
@@ -810,6 +808,9 @@ forloop:
 		}
 	}
 
+	// Start with something higher to avoid resizing if possible
+	out := make([][]byte, 0, len(c.Indexes)^3)
+
 	// We are walking through the builder slice essentially in a depth-first fashion,
 	// building the prefix and leaves as we go. If AllowMissing is false, we only insert
 	// these full paths to leaves. Otherwise, we also insert each prefix along the way.
@@ -818,6 +819,10 @@ forloop:
 	// field specified as "abc", it is valid to call FromArgs with just "abc".
 	var walkVals func([]byte, int)
 	walkVals = func(currPrefix []byte, depth int) {
+		if depth >= len(builder) {
+			return
+		}
+
 		if depth == len(builder)-1 {
 			// These are the "leaves", so append directly
 			for _, v := range builder[depth] {
