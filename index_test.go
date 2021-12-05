@@ -5,9 +5,13 @@ import (
 	crand "crypto/rand"
 	"encoding/binary"
 	"fmt"
+	"math/rand"
+	"reflect"
 	"sort"
 	"strings"
 	"testing"
+	"testing/quick"
+	"time"
 )
 
 type TestObject struct {
@@ -1312,5 +1316,137 @@ func TestCompoundIndex_PrefixFromArgs(t *testing.T) {
 	_, err = indexer.PrefixFromArgs(uuid, "foo", "bar", "nope")
 	if err == nil {
 		t.Fatalf("expected an error when passing too many arguments")
+	}
+}
+
+func TestCompoundMultiIndex_FromObject(t *testing.T) {
+	// handle sub-indexer case unique to MultiIndexer
+	obj := &TestObject{
+		ID:       "obj1-uuid",
+		Foo:      "Foo1",
+		Baz:      "yep",
+		Qux:      []string{"Test", "Test2"},
+		QuxEmpty: []string{"Qux", "Qux2"},
+	}
+	indexer := &CompoundMultiIndex{
+		Indexes: []Indexer{
+			&StringFieldIndex{Field: "Foo"},
+			&StringSliceFieldIndex{Field: "Qux"},
+			&StringSliceFieldIndex{Field: "QuxEmpty"},
+		},
+	}
+
+	ok, vals, err := indexer.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+	want := []string{
+		"Foo1\x00Test\x00Qux\x00",
+		"Foo1\x00Test\x00Qux2\x00",
+		"Foo1\x00Test2\x00Qux\x00",
+		"Foo1\x00Test2\x00Qux2\x00",
+	}
+	got := make([]string, len(vals))
+	for i, v := range vals {
+		got[i] = string(v)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("\ngot:  %+v\nwant: %+v\n", got, want)
+	}
+}
+
+func TestCompoundMultiIndex_FromObject_IndexUniquenessProperty(t *testing.T) {
+	indexPermutations := [][]string{
+		{"Foo", "Qux", "QuxEmpty"},
+		{"Foo", "QuxEmpty", "Qux"},
+		{"QuxEmpty", "Qux", "Foo"},
+		{"QuxEmpty", "Foo", "Qux"},
+		{"Qux", "QuxEmpty", "Foo"},
+		{"Qux", "Foo", "QuxEmpty"},
+	}
+
+	fn := func(o TestObject) bool {
+		for _, perm := range indexPermutations {
+			indexer := indexerFromFieldNameList(perm)
+			ok, vals, err := indexer.FromObject(o)
+			if err != nil {
+				t.Logf("err: %v", err)
+				return false
+			}
+			if !ok {
+				t.Logf("should be ok")
+				return false
+			}
+			if !assertAllUnique(t, vals) {
+				return false
+			}
+		}
+		return true
+	}
+	seed := time.Now().UnixNano()
+	t.Logf("Using seed %v", seed)
+	cfg := quick.Config{Rand: rand.New(rand.NewSource(seed))}
+	if err := quick.Check(fn, &cfg); err != nil {
+		t.Fatalf("property not held: %v", err)
+	}
+}
+
+func assertAllUnique(t *testing.T, vals [][]byte) bool {
+	t.Helper()
+	s := make(map[string]struct{}, len(vals))
+	for _, index := range vals {
+		s[string(index)] = struct{}{}
+	}
+
+	if l := len(s); l != len(vals) {
+		t.Logf("expected %d unique indexes, got %v", len(vals), l)
+		return false
+	}
+	return true
+}
+
+func indexerFromFieldNameList(keys []string) *CompoundMultiIndex {
+	indexer := &CompoundMultiIndex{AllowMissing: true}
+	for _, key := range keys {
+		if key == "Foo" || key == "Baz" {
+			indexer.Indexes = append(indexer.Indexes, &StringFieldIndex{Field: key})
+			continue
+		}
+		indexer.Indexes = append(indexer.Indexes, &StringSliceFieldIndex{Field: key})
+	}
+	return indexer
+}
+
+func BenchmarkCompoundMultiIndex_FromObject(b *testing.B) {
+	obj := &TestObject{
+		ID:       "obj1-uuid",
+		Foo:      "Foo1",
+		Baz:      "yep",
+		Qux:      []string{"Test", "Test2"},
+		QuxEmpty: []string{"Qux", "Qux2"},
+	}
+	indexer := &CompoundMultiIndex{
+		Indexes: []Indexer{
+			&StringFieldIndex{Field: "Foo"},
+			&StringSliceFieldIndex{Field: "Qux"},
+			&StringSliceFieldIndex{Field: "QuxEmpty"},
+		},
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		ok, vals, err := indexer.FromObject(obj)
+		if err != nil {
+			b.Fatalf("expected no error, got: %v", err)
+		}
+		if !ok {
+			b.Fatalf("should be ok")
+		}
+		if l := len(vals); l != 4 {
+			b.Fatalf("expected 4 indexes, got %v", l)
+		}
 	}
 }
