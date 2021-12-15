@@ -578,7 +578,6 @@ func TestUUIDFieldIndex_PrefixFromArgs(t *testing.T) {
 	if !bytes.Equal(uuidBuf[:9], val) {
 		t.Fatalf("foo")
 	}
-
 }
 
 func BenchmarkUUIDFieldIndex_parseString(b *testing.B) {
@@ -609,16 +608,16 @@ func generateUUID() ([]byte, string) {
 func TestIntFieldIndex_FromObject(t *testing.T) {
 	obj := testObj()
 
-	eint := make([]byte, 10)
-	eint8 := make([]byte, 2)
-	eint16 := make([]byte, 3)
-	eint32 := make([]byte, 5)
-	eint64 := make([]byte, 10)
-	binary.PutVarint(eint, int64(obj.Int))
-	binary.PutVarint(eint8, int64(obj.Int8))
-	binary.PutVarint(eint16, int64(obj.Int16))
-	binary.PutVarint(eint32, int64(obj.Int32))
-	binary.PutVarint(eint64, obj.Int64)
+	eint := make([]byte, 8)
+	eint8 := make([]byte, 1)
+	eint16 := make([]byte, 2)
+	eint32 := make([]byte, 4)
+	eint64 := make([]byte, 8)
+	binary.BigEndian.PutUint64(eint, 1<<63+1)
+	eint8[0] = 0
+	binary.BigEndian.PutUint16(eint16, 0)
+	binary.BigEndian.PutUint32(eint32, 0)
+	binary.BigEndian.PutUint64(eint64, 0)
 
 	cases := []struct {
 		Field         string
@@ -659,7 +658,6 @@ func TestIntFieldIndex_FromObject(t *testing.T) {
 		t.Run(c.Field, func(t *testing.T) {
 			indexer := IntFieldIndex{c.Field}
 			ok, val, err := indexer.FromObject(obj)
-
 			if err != nil {
 				if ok {
 					t.Fatalf("okay and error")
@@ -679,7 +677,6 @@ func TestIntFieldIndex_FromObject(t *testing.T) {
 			if !bytes.Equal(val, c.Expected) {
 				t.Fatalf("bad: %#v %#v", val, c.Expected)
 			}
-
 		})
 	}
 }
@@ -702,16 +699,16 @@ func TestIntFieldIndex_FromArgs(t *testing.T) {
 	}
 
 	obj := testObj()
-	eint := make([]byte, 10)
-	eint8 := make([]byte, 2)
-	eint16 := make([]byte, 3)
-	eint32 := make([]byte, 5)
-	eint64 := make([]byte, 10)
-	binary.PutVarint(eint, int64(obj.Int))
-	binary.PutVarint(eint8, int64(obj.Int8))
-	binary.PutVarint(eint16, int64(obj.Int16))
-	binary.PutVarint(eint32, int64(obj.Int32))
-	binary.PutVarint(eint64, obj.Int64)
+	eint := make([]byte, 8)
+	eint8 := make([]byte, 1)
+	eint16 := make([]byte, 2)
+	eint32 := make([]byte, 4)
+	eint64 := make([]byte, 8)
+	binary.BigEndian.PutUint64(eint, 1<<63+1)
+	eint8[0] = 0
+	binary.BigEndian.PutUint16(eint16, 0)
+	binary.BigEndian.PutUint32(eint32, 0)
+	binary.BigEndian.PutUint64(eint64, 0)
 
 	val, err := indexer.FromArgs(obj.Int)
 	if err != nil {
@@ -751,6 +748,46 @@ func TestIntFieldIndex_FromArgs(t *testing.T) {
 	}
 	if !bytes.Equal(val, eint64) {
 		t.Fatalf("bad: %#v %#v", val, eint64)
+	}
+}
+
+func TestIntFieldIndexSortability(t *testing.T) {
+	testCases := []struct {
+		i8l      int8
+		i8r      int8
+		i16l     int16
+		i16r     int16
+		i32l     int32
+		i32r     int32
+		i64l     int64
+		i64r     int64
+		il       int
+		ir       int
+		expected int
+		name     string
+	}{
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "zero"},
+		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, "small eq"},
+		{0, 1, 0, 1, 0, 1, 0, 1, 0, 1, -1, "small lt"},
+		{2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1, "small gt"},
+		{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, "small neg eq"},
+		{-2, -1, -2, -1, -2, -1, -2, -1, -2, -1, -1, "small neg lt"},
+		{-1, -2, -1, -2, -1, -2, -1, -2, -1, -2, 1, "small neg gt"},
+		{-1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1, "neg vs pos"},
+		{-128, 127, -32768, 32767, -2147483648, 2147483647, -9223372036854775808, 9223372036854775807, -9223372036854775808, 9223372036854775807, -1, "max conditions"},
+		{100, 127, 1000, 2000, 1000000000, 2000000000, 10000000000, 20000000000, 1000000000, 2000000000, -1, "large lt"},
+		{100, 99, 1000, 999, 1000000000, 999999999, 10000000000, 9999999999, 1000000000, 999999999, 1, "large gt"},
+		{126, 127, 255, 256, 65535, 65536, 4294967295, 4294967296, 65535, 65536, -1, "edge conditions"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			compareEncoded(t, &IntFieldIndex{"Foo"}, tc.i8l, tc.i8r, tc.expected)
+			compareEncoded(t, &IntFieldIndex{"Foo"}, tc.i16l, tc.i16r, tc.expected)
+			compareEncoded(t, &IntFieldIndex{"Foo"}, tc.i32l, tc.i32r, tc.expected)
+			compareEncoded(t, &IntFieldIndex{"Foo"}, tc.i64l, tc.i64r, tc.expected)
+			compareEncoded(t, &IntFieldIndex{"Foo"}, tc.il, tc.ir, tc.expected)
+		})
 	}
 }
 
@@ -807,7 +844,6 @@ func TestUintFieldIndex_FromObject(t *testing.T) {
 		t.Run(c.Field, func(t *testing.T) {
 			indexer := UintFieldIndex{c.Field}
 			ok, val, err := indexer.FromObject(obj)
-
 			if err != nil {
 				if ok {
 					t.Fatalf("okay and error")
@@ -827,7 +863,6 @@ func TestUintFieldIndex_FromObject(t *testing.T) {
 			if !bytes.Equal(val, c.Expected) {
 				t.Fatalf("bad: %#v %#v", val, c.Expected)
 			}
-
 		})
 	}
 }
@@ -928,25 +963,23 @@ func TestUIntFieldIndexSortability(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			compareEncoded(t, tc.u8l, tc.u8r, tc.expected)
-			compareEncoded(t, tc.u16l, tc.u16r, tc.expected)
-			compareEncoded(t, tc.u32l, tc.u32r, tc.expected)
-			compareEncoded(t, tc.u64l, tc.u64r, tc.expected)
-			compareEncoded(t, tc.ul, tc.ur, tc.expected)
+			compareEncoded(t, &UintFieldIndex{"Foo"}, tc.u8l, tc.u8r, tc.expected)
+			compareEncoded(t, &UintFieldIndex{"Foo"}, tc.u16l, tc.u16r, tc.expected)
+			compareEncoded(t, &UintFieldIndex{"Foo"}, tc.u32l, tc.u32r, tc.expected)
+			compareEncoded(t, &UintFieldIndex{"Foo"}, tc.u64l, tc.u64r, tc.expected)
+			compareEncoded(t, &UintFieldIndex{"Foo"}, tc.ul, tc.ur, tc.expected)
 		})
 	}
 }
 
-func compareEncoded(t *testing.T, l interface{}, r interface{}, expected int) {
-	indexer := UintFieldIndex{"Foo"}
-
+func compareEncoded(t *testing.T, indexer Indexer, l interface{}, r interface{}, expected int) {
 	lBytes, err := indexer.FromArgs(l)
 	if err != nil {
-		t.Fatalf("unable to encode: %d", l)
+		t.Fatalf("unable to encode %d: %s", l, err)
 	}
 	rBytes, err := indexer.FromArgs(r)
 	if err != nil {
-		t.Fatalf("unable to encode: %d", r)
+		t.Fatalf("unable to encode %d: %s", r, err)
 	}
 
 	if bytes.Compare(lBytes, rBytes) != expected {
@@ -1113,21 +1146,19 @@ func TestFieldSetIndex_FromArgs(t *testing.T) {
 	}
 }
 
-var (
-	// A conditional that checks if TestObject.Bar == 42
-	conditional = func(obj interface{}) (bool, error) {
-		test, ok := obj.(*TestObject)
-		if !ok {
-			return false, fmt.Errorf("Expect only TestObj types")
-		}
-
-		if test.Bar != 42 {
-			return false, nil
-		}
-
-		return true, nil
+// A conditional that checks if TestObject.Bar == 42
+var conditional = func(obj interface{}) (bool, error) {
+	test, ok := obj.(*TestObject)
+	if !ok {
+		return false, fmt.Errorf("Expect only TestObj types")
 	}
-)
+
+	if test.Bar != 42 {
+		return false, nil
+	}
+
+	return true, nil
+}
 
 func TestConditionalIndex_FromObject(t *testing.T) {
 	obj := testObj()
