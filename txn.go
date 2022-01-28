@@ -513,7 +513,15 @@ func (txn *Txn) DeleteAll(table, index string, args ...interface{}) (int, error)
 }
 
 // FirstWatch is used to return the first matching object for
-// the given constraints on the index along with the watch channel
+// the given constraints on the index along with the watch channel.
+//
+// Note that all values read in the transaction form a consistent snapshot
+// from the time when the transaction was created.
+//
+// The watch channel is closed when a subsequent write transaction
+// has updated the result of the query. Since each read transaction
+// operates on an isolated snapshot, a new read transaction must be
+// started to observe the changes that have been made.
 func (txn *Txn) FirstWatch(table, index string, args ...interface{}) (<-chan struct{}, interface{}, error) {
 	// Get the index value
 	indexSchema, val, err := txn.getIndexValue(table, index, args...)
@@ -541,7 +549,15 @@ func (txn *Txn) FirstWatch(table, index string, args ...interface{}) (<-chan str
 }
 
 // LastWatch is used to return the last matching object for
-// the given constraints on the index along with the watch channel
+// the given constraints on the index along with the watch channel.
+//
+// Note that all values read in the transaction form a consistent snapshot
+// from the time when the transaction was created.
+//
+// The watch channel is closed when a subsequent write transaction
+// has updated the result of the query. Since each read transaction
+// operates on an isolated snapshot, a new read transaction must be
+// started to observe the changes that have been made.
 func (txn *Txn) LastWatch(table, index string, args ...interface{}) (<-chan struct{}, interface{}, error) {
 	// Get the index value
 	indexSchema, val, err := txn.getIndexValue(table, index, args...)
@@ -569,14 +585,20 @@ func (txn *Txn) LastWatch(table, index string, args ...interface{}) (<-chan stru
 }
 
 // First is used to return the first matching object for
-// the given constraints on the index
+// the given constraints on the index.
+//
+// Note that all values read in the transaction form a consistent snapshot
+// from the time when the transaction was created.
 func (txn *Txn) First(table, index string, args ...interface{}) (interface{}, error) {
 	_, val, err := txn.FirstWatch(table, index, args...)
 	return val, err
 }
 
 // Last is used to return the last matching object for
-// the given constraints on the index
+// the given constraints on the index.
+//
+// Note that all values read in the transaction form a consistent snapshot
+// from the time when the transaction was created.
 func (txn *Txn) Last(table, index string, args ...interface{}) (interface{}, error) {
 	_, val, err := txn.LastWatch(table, index, args...)
 	return val, err
@@ -589,6 +611,9 @@ func (txn *Txn) Last(table, index string, args ...interface{}) (interface{}, err
 // null and fail to find a leaf node). This should only be used where the prefix
 // given is capable of matching indexed entries directly, which typically only
 // applies to a custom indexer. See the unit test for an example.
+//
+// Note that all values read in the transaction form a consistent snapshot
+// from the time when the transaction was created.
 func (txn *Txn) LongestPrefix(table, index string, args ...interface{}) (interface{}, error) {
 	// Enforce that this only works on prefix indexes.
 	if !strings.HasSuffix(index, "_prefix") {
