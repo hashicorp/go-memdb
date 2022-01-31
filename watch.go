@@ -42,7 +42,7 @@ func (w WatchSet) AddWithLimit(softLimit int, watchCh <-chan struct{}, altCh <-c
 	}
 }
 
-// Watch is used to wait for either the watch set to trigger or a timeout.
+// Watch is used to wait for any channel of the watch set to trigger or a timeout.
 // Returns true on timeout.
 func (w WatchSet) Watch(timeoutCh <-chan time.Time) bool {
 	if w == nil {
@@ -64,7 +64,7 @@ func (w WatchSet) Watch(timeoutCh <-chan time.Time) bool {
 	return w.WatchCtx(ctx) == context.Canceled
 }
 
-// WatchCtx is used to wait for either the watch set to trigger or for the
+// WatchCtx is used to wait for any channel of the watch set to trigger or for the
 // context to be cancelled. Watch with a timeout channel can be mimicked by
 // creating a context with a deadline. WatchCtx should be preferred over Watch.
 func (w WatchSet) WatchCtx(ctx context.Context) error {
@@ -128,7 +128,7 @@ func (w WatchSet) watchMany(ctx context.Context) error {
 	}
 }
 
-// WatchCh returns a channel that is used to wait for either the watch set to trigger
+// WatchCh returns a channel that is used to wait for any channel of the watch set to trigger
 // or for the context to be cancelled. WatchCh creates a new goroutine each call, so
 // callers may need to cache the returned channel to avoid creating extra goroutines.
 func (w WatchSet) WatchCh(ctx context.Context) <-chan error {
