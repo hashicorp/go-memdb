@@ -323,7 +323,7 @@ func (txn *Txn) Delete(table string, obj interface{}) error {
 		return fmt.Errorf("object missing primary index")
 	}
 
-	// Lookup the object by ID first, check fi we should continue
+	// Lookup the object by ID first, check if we should continue
 	idTxn := txn.writableIndex(table, id)
 	existing, ok := idTxn.Get(idVal)
 	if !ok {
