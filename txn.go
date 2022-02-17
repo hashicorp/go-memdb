@@ -102,7 +102,8 @@ func (txn *Txn) writableIndex(table, index string) *iradix.Txn {
 }
 
 // Abort is used to cancel this transaction.
-// This is a noop for read transactions.
+// This is a noop for read transactions,
+// already aborted or commited transactions.
 func (txn *Txn) Abort() {
 	// Noop for a read transaction
 	if !txn.write {
@@ -124,7 +125,8 @@ func (txn *Txn) Abort() {
 }
 
 // Commit is used to finalize this transaction.
-// This is a noop for read transactions.
+// This is a noop for read transactions,
+// already aborted or committed transactions.
 func (txn *Txn) Commit() {
 	// Noop for a read transaction
 	if !txn.write {
