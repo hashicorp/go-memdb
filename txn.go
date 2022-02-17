@@ -102,7 +102,8 @@ func (txn *Txn) writableIndex(table, index string) *iradix.Txn {
 }
 
 // Abort is used to cancel this transaction.
-// This is a noop for read transactions.
+// This is a noop for read transactions,
+// already aborted or commited transactions.
 func (txn *Txn) Abort() {
 	// Noop for a read transaction
 	if !txn.write {
@@ -124,7 +125,8 @@ func (txn *Txn) Abort() {
 }
 
 // Commit is used to finalize this transaction.
-// This is a noop for read transactions.
+// This is a noop for read transactions,
+// already aborted or committed transactions.
 func (txn *Txn) Commit() {
 	// Noop for a read transaction
 	if !txn.write {
@@ -321,7 +323,7 @@ func (txn *Txn) Delete(table string, obj interface{}) error {
 		return fmt.Errorf("object missing primary index")
 	}
 
-	// Lookup the object by ID first, check fi we should continue
+	// Lookup the object by ID first, check if we should continue
 	idTxn := txn.writableIndex(table, id)
 	existing, ok := idTxn.Get(idVal)
 	if !ok {
