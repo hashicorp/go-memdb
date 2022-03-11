@@ -52,6 +52,10 @@ func NewMemDB(schema *DBSchema) (*MemDB, error) {
 	return db, nil
 }
 
+func (db *MemDB) DBSchema() *DBSchema {
+	return db.schema
+}
+
 // getRoot is used to do an atomic load of the root pointer
 func (db *MemDB) getRoot() *iradix.Tree {
 	root := (*iradix.Tree)(atomic.LoadPointer(&db.root))
