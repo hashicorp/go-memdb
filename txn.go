@@ -172,6 +172,60 @@ func (txn *Txn) Commit() {
 	}
 }
 
+// CreateIndexes creates the given indexes for each value of the root tree
+func (txn *Txn) CreateIndexes(table string, indexes ...*IndexSchema) error {
+	if !txn.write {
+		return fmt.Errorf("cannot create index in read-only transaction")
+	}
+
+	// Get the table schema
+	tableSchema, ok := txn.db.schema.Tables[table]
+	if !ok {
+		return fmt.Errorf("invalid table '%s'", table)
+	}
+
+	// and the id indexer
+	idSchema := tableSchema.Indexes[id]
+	idIndexer := idSchema.Indexer.(SingleIndexer)
+
+	// create iterator over all entries
+	indexIterator, _, err := txn.getIndexIterator(table, id)
+	if err != nil {
+		return err
+	}
+	iter := &radixIterator{iter: indexIterator}
+
+	// create all indexes for each index entry
+	for next := iter.Next(); next != nil; next = iter.Next() {
+
+		// Get the primary ID of the object
+		ok, idVal, err := idIndexer.FromObject(next)
+		if err != nil {
+			return fmt.Errorf("failed to build primary index: %v", err)
+		}
+		if !ok {
+			return fmt.Errorf("object missing primary index")
+		}
+
+		for _, indexSchema := range indexes {
+			indexTxn := txn.writableIndex(table, indexSchema.Name)
+
+			var vals [][]byte
+			vals, err = txn.createIndexValue(indexSchema, idVal, next)
+			if err != nil {
+				return err
+			}
+
+			// Update the value of the index
+			for _, val := range vals {
+				indexTxn.Insert(val, next)
+			}
+		}
+	}
+
+	return nil
+}
+
 // Insert is used to add or update an object into the given table.
 //
 // When updating an object, the obj provided should be a copy rather
@@ -209,31 +263,10 @@ func (txn *Txn) Insert(table string, obj interface{}) error {
 	for name, indexSchema := range tableSchema.Indexes {
 		indexTxn := txn.writableIndex(table, name)
 
-		// Determine the new index value
-		var (
-			ok   bool
-			vals [][]byte
-			err  error
-		)
-		switch indexer := indexSchema.Indexer.(type) {
-		case SingleIndexer:
-			var val []byte
-			ok, val, err = indexer.FromObject(obj)
-			vals = [][]byte{val}
-		case MultiIndexer:
-			ok, vals, err = indexer.FromObject(obj)
-		}
+		var vals [][]byte
+		vals, err = txn.createIndexValue(indexSchema, idVal, obj)
 		if err != nil {
-			return fmt.Errorf("failed to build index '%s': %v", name, err)
-		}
-
-		// Handle non-unique index by computing a unique index.
-		// This is done by appending the primary key which must
-		// be unique anyways.
-		if ok && !indexSchema.Unique {
-			for i := range vals {
-				vals[i] = append(vals[i], idVal...)
-			}
+			return err
 		}
 
 		// Handle the update by deleting from the index first
@@ -273,21 +306,12 @@ func (txn *Txn) Insert(table string, obj interface{}) error {
 			}
 		}
 
-		// If there is no index value, either this is an error or an expected
-		// case and we can skip updating
-		if !ok {
-			if indexSchema.AllowMissing {
-				continue
-			} else {
-				return fmt.Errorf("missing value for index '%s'", name)
-			}
-		}
-
 		// Update the value of the index
 		for _, val := range vals {
 			indexTxn.Insert(val, obj)
 		}
 	}
+
 	if txn.changes != nil {
 		txn.changes = append(txn.changes, Change{
 			Table:      table,
@@ -296,6 +320,7 @@ func (txn *Txn) Insert(table string, obj interface{}) error {
 			primaryKey: idVal,
 		})
 	}
+
 	return nil
 }
 
@@ -648,6 +673,48 @@ func (txn *Txn) LongestPrefix(table, index string, args ...interface{}) (interfa
 		return value, nil
 	}
 	return nil, nil
+}
+
+func (txn *Txn) createIndexValue(indexSchema *IndexSchema, idVal []byte, obj interface{}) ([][]byte, error) {
+	// Determine the new index value
+	var (
+		ok   bool
+		vals [][]byte
+		err  error
+	)
+
+	switch indexer := indexSchema.Indexer.(type) {
+	case SingleIndexer:
+		var val []byte
+		ok, val, err = indexer.FromObject(obj)
+		vals = [][]byte{val}
+	case MultiIndexer:
+		ok, vals, err = indexer.FromObject(obj)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to build index '%s': %v", indexSchema.Name, err)
+	}
+
+	// Handle non-unique index by computing a unique index.
+	// This is done by appending the primary key which must
+	// be unique anyways.
+	if ok && !indexSchema.Unique {
+		for i := range vals {
+			vals[i] = append(vals[i], idVal...)
+		}
+	}
+
+	// If there is no index value, either this is an error or an expected
+	// case and we can skip updating
+	if !ok {
+		if indexSchema.AllowMissing {
+			return nil, nil
+		} else {
+			return nil, fmt.Errorf("missing value for index '%s'", indexSchema.Name)
+		}
+	}
+
+	return vals, nil
 }
 
 // getIndexValue is used to get the IndexSchema and the value

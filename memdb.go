@@ -95,6 +95,33 @@ func (db *MemDB) Snapshot() *MemDB {
 	return clone
 }
 
+func (db *MemDB) CreateIndexes(table string, schema ...*IndexSchema) error {
+	for _, indexSchema := range schema {
+		index := iradix.New()
+		path := indexPath(table, indexSchema.Name)
+		root := db.getRoot()
+		root, _, _ = root.Insert(path, index)
+
+		/* #nosec */
+		db.root = unsafe.Pointer(root)
+	}
+
+	transaction := db.Txn(true)
+	defer transaction.Abort()
+
+	if err := transaction.CreateIndexes(table, schema...); err != nil {
+		return err
+	}
+
+	tableSchema := db.schema.Tables[table]
+	for _, indexSchema := range schema {
+		tableSchema.Indexes[indexSchema.Name] = indexSchema
+	}
+
+	transaction.Commit()
+	return nil
+}
+
 // initialize is used to setup the DB for use after creation. This should
 // be called only once after allocating a MemDB.
 func (db *MemDB) initialize() error {
