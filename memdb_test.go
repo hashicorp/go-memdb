@@ -79,3 +79,39 @@ func TestMemDB_Snapshot(t *testing.T) {
 		t.Fatalf("should exist")
 	}
 }
+
+func TestMemDB_CreateIndexes(t *testing.T) {
+	db, err := NewMemDB(testValidSchema())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Add an object
+	obj := testObj()
+	txn := db.Txn(true)
+	txn.Insert("main", obj)
+	txn.Commit()
+
+	err = db.CreateIndexes("main", &IndexSchema{
+		Name:         "FooIndex",
+		AllowMissing: true,
+		Unique:       false,
+		Indexer: &StringFieldIndex{
+			Field:     "Foo",
+			Lowercase: false,
+		},
+	})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	idxIter, _, err := db.Txn(false).getIndexIterator("main", "foo")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	iter := &radixIterator{iter: idxIter}
+	if iter.Next() == nil {
+		t.Fatalf("next should exist")
+	}
+}
