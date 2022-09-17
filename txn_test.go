@@ -1095,7 +1095,7 @@ func TestTxn_InsertGet_Prefix(t *testing.T) {
 			t.Fatalf("bad: %#v %#v", raw, nil)
 		}
 
-		// Attempt a row scan secondary index, tigher prefix
+		// Attempt a row scan secondary index, higher prefix
 		result, err = txn.Get("main", "foo_prefix", "foob")
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -1132,7 +1132,7 @@ func TestTxn_InsertGet_Prefix(t *testing.T) {
 			t.Fatalf("bad: %#v %#v", raw, nil)
 		}
 
-		// Attempt a row scan multiindex, tigher prefix
+		// Attempt a row scan multiindex, higher prefix
 		result, err = txn.Get("main", "qux_prefix", "foob")
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -1735,8 +1735,8 @@ func TestStringFieldIndexerEmptyPointerFromArgs(t *testing.T) {
 
 func TestTxn_Changes(t *testing.T) {
 
-	// Create a schmea that exercises all mutation code paths (i.e. has a prefix
-	// index as well as primary and multple tables).
+	// Create a schema that exercises all mutation code paths (i.e. has a prefix
+	// index as well as primary and multiple tables).
 	schema := &DBSchema{
 		Tables: map[string]*TableSchema{
 			"one": &TableSchema{

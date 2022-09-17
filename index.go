@@ -31,11 +31,11 @@ type SingleIndexer interface {
 }
 
 // MultiIndexer is an interface used for defining indexes that generate
-// multiple values per object. Each value is stored as a seperate index
+// multiple values per object. Each value is stored as a separate index
 // pointing to the same object.
 //
 // For example, an index that extracts the first and last name of a person
-// and allows lookup based on eitherd would be a MultiIndexer. The FromObject
+// and allows lookup based on either would be a MultiIndexer. The FromObject
 // of this example would split the first and last name and return both as
 // values.
 type MultiIndexer interface {

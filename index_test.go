@@ -413,7 +413,7 @@ func TestStringMapFieldIndex_FromArgs(t *testing.T) {
 	}
 }
 
-func TestUUIDFeldIndex_parseString(t *testing.T) {
+func TestUUIDFieldIndex_parseString(t *testing.T) {
 	u := &UUIDFieldIndex{}
 	_, err := u.parseString("invalid", true)
 	if err == nil {

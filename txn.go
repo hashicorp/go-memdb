@@ -103,7 +103,7 @@ func (txn *Txn) writableIndex(table, index string) *iradix.Txn {
 
 // Abort is used to cancel this transaction.
 // This is a noop for read transactions,
-// already aborted or commited transactions.
+// already aborted or committed transactions.
 func (txn *Txn) Abort() {
 	// Noop for a read transaction
 	if !txn.write {
@@ -947,7 +947,7 @@ func (txn *Txn) getIndexIteratorReverse(table, index string, args ...interface{}
 	indexTxn := txn.readableIndex(table, indexSchema.Name)
 	indexRoot := indexTxn.Root()
 
-	// Get an interator over the index
+	// Get an iterator over the index
 	indexIter := indexRoot.ReverseIterator()
 	return indexIter, val, nil
 }
