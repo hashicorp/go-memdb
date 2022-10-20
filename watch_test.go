@@ -1,8 +1,11 @@
 package memdb
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"runtime/pprof"
+	"strings"
 	"testing"
 	"time"
 )
@@ -237,6 +240,62 @@ func TestWatch_AddWithLimit(t *testing.T) {
 		if !didTimeout {
 			t.Fatalf("bad")
 		}
+	}
+}
+
+func TestWatchCtxLeak(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// We add a large number of channels to a WatchSet then
+	// call WatchCtx. If one of those channels fires, we
+	// expect to see all the goroutines spawned by WatchCtx
+	// cleaned up.
+	pprof.Do(ctx, pprof.Labels("foo", "bar"), func(ctx context.Context) {
+		ws := NewWatchSet()
+		fireCh := make(chan struct{})
+		ws.Add(fireCh)
+		for i := 0; i < 10000; i++ {
+			watchCh := make(chan struct{})
+			ws.Add(watchCh)
+		}
+		result := make(chan error)
+		go func() {
+			result <- ws.WatchCtx(ctx)
+		}()
+
+		fireCh <- struct{}{}
+
+		if err := <-result; err != nil {
+			t.Fatalf("expected no err got: %v", err)
+		}
+	})
+
+	numRetries := 3
+	var gced bool
+	for i := 0; i < numRetries; i++ {
+		var pb bytes.Buffer
+		profiler := pprof.Lookup("goroutine")
+		if profiler == nil {
+			t.Fatal("unable to find profile")
+		}
+		err := profiler.WriteTo(&pb, 1)
+		if err != nil {
+			t.Fatalf("unable to read profile: %v", err)
+		}
+		// If the debug profile dump contains the string "foo",
+		// it means one of the goroutines spawned in pprof.Do above
+		// still appears in the capture.
+		if !strings.Contains(pb.String(), "foo") {
+			gced = true
+			break
+		} else {
+			t.Log("retrying")
+			time.Sleep(1 * time.Second)
+		}
+	}
+	if !gced {
+		t.Errorf("goroutines were not garbage collected after %d retries", numRetries)
 	}
 }
 

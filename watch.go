@@ -91,10 +91,14 @@ func (w WatchSet) WatchCtx(ctx context.Context) error {
 
 // watchMany is used if there are many watchers.
 func (w WatchSet) watchMany(ctx context.Context) error {
+	// Cancel all watcher goroutines when return.
+	watcherCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	// Set up a goroutine for each watcher.
 	triggerCh := make(chan struct{}, 1)
 	watcher := func(chunk []<-chan struct{}) {
-		if err := watchFew(ctx, chunk); err == nil {
+		if err := watchFew(watcherCtx, chunk); err == nil {
 			select {
 			case triggerCh <- struct{}{}:
 			default:
