@@ -847,7 +847,7 @@ forloop:
 	}
 
 	// Start with something higher to avoid resizing if possible
-	out := make([][]byte, 0, len(c.Indexes)<<2)
+	out := make([][]byte, 0, len(c.Indexes)<<3)
 
 	// We are walking through the builder slice essentially in a depth-first fashion,
 	// building the prefix and leaves as we go. If AllowMissing is false, we only insert
