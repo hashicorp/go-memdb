@@ -180,9 +180,7 @@ func (s *StringSliceFieldIndex) FromArgs(args ...interface{}) ([]byte, error) {
 		arg = strings.ToLower(arg)
 	}
 	// Add the null character as a terminator
-	v := make([]byte, len(arg)+1)
-	copy(v, arg)
-	return []byte(arg), nil
+	return nulTerminatedByteSlice(arg), nil
 }
 
 func (s *StringSliceFieldIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
@@ -581,7 +579,7 @@ func (u *UUIDFieldIndex) parseString(s string, enforceLength bool) ([]byte, erro
 	}
 
 	sb := []byte(s)
-	rv := make([]byte, 0, 17)
+	rv := make([]byte, 0, 16)
 	v := make([]byte, 1)
 loop:
 	for i := 0; i < 16; i++ {
