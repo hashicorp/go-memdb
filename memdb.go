@@ -110,10 +110,6 @@ func (db *MemDB) initialize() error {
 	return nil
 }
 
-func (db *MemDB) return2DSlice(vals [][]byte) {
-
-}
-
 // indexPath returns the path from the root to the given table index
 func indexPath(table, index string) []byte {
 	return []byte(table + "." + index)

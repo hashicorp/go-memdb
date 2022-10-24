@@ -751,7 +751,6 @@ func (txn *Txn) Get(table, index string, args ...interface{}) (ResultIterator, e
 	iter := &radixIterator{
 		iter:    indexIter,
 		watchCh: watchCh,
-		val:     val,
 	}
 	return iter, nil
 }
@@ -967,7 +966,6 @@ func (txn *Txn) Defer(fn func()) {
 type radixIterator struct {
 	iter    *iradix.Iterator
 	watchCh <-chan struct{}
-	val     []byte
 }
 
 func (r *radixIterator) WatchCh() <-chan struct{} {
