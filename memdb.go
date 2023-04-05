@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 // Package memdb provides an in-memory database that supports transactions
 // and MVCC.
 package memdb

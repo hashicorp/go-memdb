@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 // This tool generates the special-case code for a small number of watchers
 // which runs all the watches in a single select vs. needing to spawn a
 // goroutine for each one.
