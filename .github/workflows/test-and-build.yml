@@ -9,9 +9,9 @@ jobs:
     container:
       image: docker.mirror.hashicorp.services/circleci/golang:1.16.7
     steps:
-    - uses: actions/checkout@v3.5.0
+    - uses: actions/checkout@8f4b7f84864484a7bf31766abe9204da3cbe65b3 # v3.5.0
     - name: restore_cache
-      uses: actions/cache@v3.3.1
+      uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3.3.1
       with:
         key: go-memdb-modcache-v1-{{ checksum "go.mod" }}
         restore-keys: go-memdb-modcache-v1-{{ checksum "go.mod" }}
@@ -31,19 +31,19 @@ jobs:
     container:
       image: docker.mirror.hashicorp.services/circleci/golang:1.16.7
     steps:
-    - uses: actions/checkout@v3.5.0
+    - uses: actions/checkout@8f4b7f84864484a7bf31766abe9204da3cbe65b3 # v3.5.0
     - run: mkdir -p $TEST_RESULTS
     - name: restore_cache
-      uses: actions/cache@v3.3.1
+      uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3.3.1
       with:
         key: go-memdb-modcache-v1-{{ checksum "go.mod" }}
         restore-keys: go-memdb-modcache-v1-{{ checksum "go.mod" }}
     - run: |
         PACKAGE_NAMES=$(go list ./...)
         gotestsum --format=short-verbose --junitfile $TEST_RESULTS/gotestsum-report.xml -- $PACKAGE_NAMES
-    - uses: actions/upload-artifact@v3.1.1
+    - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
       with:
         path: "/tmp/test-results"
-    - uses: actions/upload-artifact@v3.1.1
+    - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
       with:
         path: "/tmp/test-results"
