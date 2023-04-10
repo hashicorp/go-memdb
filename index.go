@@ -71,8 +71,7 @@ func (s *StringFieldIndex) FromObject(obj interface{}) (bool, []byte, error) {
 	isPtr := fv.Kind() == reflect.Ptr
 	fv = reflect.Indirect(fv)
 	if !isPtr && !fv.IsValid() {
-		return false, nil,
-			fmt.Errorf("field '%s' for %#v is invalid %v ", s.Field, obj, isPtr)
+		return false, nil, fmt.Errorf("field '%s' for %#v is invalid %v ", s.Field, obj, isPtr)
 	}
 
 	if isPtr && !fv.IsValid() {
@@ -138,8 +137,7 @@ func (s *StringSliceFieldIndex) FromObject(obj interface{}) (bool, [][]byte, err
 
 	fv := v.FieldByName(s.Field)
 	if !fv.IsValid() {
-		return false, nil,
-			fmt.Errorf("field '%s' for %#v is invalid", s.Field, obj)
+		return false, nil, fmt.Errorf("field '%s' for %#v is invalid", s.Field, obj)
 	}
 
 	if fv.Kind() != reflect.Slice || fv.Type().Elem().Kind() != reflect.String {
@@ -298,8 +296,7 @@ func (i *IntFieldIndex) FromObject(obj interface{}) (bool, []byte, error) {
 
 	fv := v.FieldByName(i.Field)
 	if !fv.IsValid() {
-		return false, nil,
-			fmt.Errorf("field '%s' for %#v is invalid", i.Field, obj)
+		return false, nil, fmt.Errorf("field '%s' for %#v is invalid", i.Field, obj)
 	}
 
 	// Check the type
@@ -394,8 +391,7 @@ func (u *UintFieldIndex) FromObject(obj interface{}) (bool, []byte, error) {
 
 	fv := v.FieldByName(u.Field)
 	if !fv.IsValid() {
-		return false, nil,
-			fmt.Errorf("field '%s' for %#v is invalid", u.Field, obj)
+		return false, nil, fmt.Errorf("field '%s' for %#v is invalid", u.Field, obj)
 	}
 
 	// Check the type
@@ -484,8 +480,7 @@ func (i *BoolFieldIndex) FromObject(obj interface{}) (bool, []byte, error) {
 
 	fv := v.FieldByName(i.Field)
 	if !fv.IsValid() {
-		return false, nil,
-			fmt.Errorf("field '%s' for %#v is invalid", i.Field, obj)
+		return false, nil, fmt.Errorf("field '%s' for %#v is invalid", i.Field, obj)
 	}
 
 	// Check the type
@@ -521,8 +516,7 @@ func (u *UUIDFieldIndex) FromObject(obj interface{}) (bool, []byte, error) {
 
 	fv := v.FieldByName(u.Field)
 	if !fv.IsValid() {
-		return false, nil,
-			fmt.Errorf("field '%s' for %#v is invalid", u.Field, obj)
+		return false, nil, fmt.Errorf("field '%s' for %#v is invalid", u.Field, obj)
 	}
 
 	val := fv.String()
@@ -547,8 +541,7 @@ func (u *UUIDFieldIndex) FromArgs(args ...interface{}) ([]byte, error) {
 		}
 		return arg, nil
 	default:
-		return nil,
-			fmt.Errorf("argument must be a string or byte slice: %#v", args[0])
+		return nil, fmt.Errorf("argument must be a string or byte slice: %#v", args[0])
 	}
 }
 
@@ -562,8 +555,7 @@ func (u *UUIDFieldIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
 	case []byte:
 		return arg, nil
 	default:
-		return nil,
-			fmt.Errorf("argument must be a string or byte slice: %#v", args[0])
+		return nil, fmt.Errorf("argument must be a string or byte slice: %#v", args[0])
 	}
 }
 
@@ -612,8 +604,7 @@ func (f *FieldSetIndex) FromObject(obj interface{}) (bool, []byte, error) {
 
 	fv := v.FieldByName(f.Field)
 	if !fv.IsValid() {
-		return false, nil,
-			fmt.Errorf("field '%s' for %#v is invalid", f.Field, obj)
+		return false, nil, fmt.Errorf("field '%s' for %#v is invalid", f.Field, obj)
 	}
 
 	if fv.Interface() == reflect.Zero(fv.Type()).Interface() {
