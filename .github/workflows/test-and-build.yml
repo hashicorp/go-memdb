@@ -41,7 +41,7 @@ jobs:
       - uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
         with:
           go-version: ${{ matrix.go-version }}
-      - uses: autero1/action-gotestsum@2e48af62f5248bd3b014f598cd1aa69a01dd36e3 # v1.0.0
+      - uses: autero1/action-gotestsum@7263b9d73912eec65f46337689e59fac865c425f # v2.0.0
         with:
           gotestsum_version: 1.9.0
 
