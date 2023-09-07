@@ -9,7 +9,7 @@ import (
 )
 
 func TestMemDB_SingleWriter_MultiReader(t *testing.T) {
-	db, err := NewMemDB(testValidSchema())
+	db, err := NewMemDB(testValidSchema(), t.TempDir())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -44,7 +44,7 @@ func TestMemDB_SingleWriter_MultiReader(t *testing.T) {
 }
 
 func TestMemDB_Snapshot(t *testing.T) {
-	db, err := NewMemDB(testValidSchema())
+	db, err := NewMemDB(testValidSchema(), t.TempDir())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

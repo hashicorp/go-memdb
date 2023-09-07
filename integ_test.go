@@ -440,15 +440,15 @@ type TestVisit struct {
 func testComplexSchema() *DBSchema {
 	return &DBSchema{
 		Tables: map[string]*TableSchema{
-			"people": &TableSchema{
+			"people": { // &TableSchema
 				Name: "people",
 				Indexes: map[string]*IndexSchema{
-					"id": &IndexSchema{
+					"id": { // &IndexSchema
 						Name:    "id",
 						Unique:  true,
 						Indexer: &UUIDFieldIndex{Field: "ID"},
 					},
-					"name": &IndexSchema{
+					"name": { // &IndexSchema
 						Name:   "name",
 						Unique: true,
 						Indexer: &CompoundIndex{
@@ -458,37 +458,37 @@ func testComplexSchema() *DBSchema {
 							},
 						},
 					},
-					"age": &IndexSchema{
+					"age": { // &IndexSchema
 						Name:    "age",
 						Unique:  false,
 						Indexer: &UintFieldIndex{Field: "Age"},
 					},
-					"negative_age": &IndexSchema{
+					"negative_age": { // &IndexSchema
 						Name:    "negative_age",
 						Unique:  false,
 						Indexer: &IntFieldIndex{Field: "NegativeAge"},
 					},
-					"sibling": &IndexSchema{
+					"sibling": { // &IndexSchema
 						Name:    "sibling",
 						Unique:  false,
 						Indexer: &FieldSetIndex{Field: "Sibling"},
 					},
 				},
 			},
-			"places": &TableSchema{
+			"places": { // &TableSchema
 				Name: "places",
 				Indexes: map[string]*IndexSchema{
-					"id": &IndexSchema{
+					"id": { // &IndexSchema
 						Name:    "id",
 						Unique:  true,
 						Indexer: &UUIDFieldIndex{Field: "ID"},
 					},
-					"name": &IndexSchema{
+					"name": { // &IndexSchema
 						Name:    "name",
 						Unique:  true,
 						Indexer: &StringFieldIndex{Field: "Name"},
 					},
-					"name_tags": &IndexSchema{
+					"name_tags": { // &IndexSchema
 						Name:         "name_tags",
 						Unique:       true,
 						AllowMissing: true,
@@ -500,7 +500,7 @@ func testComplexSchema() *DBSchema {
 							},
 						},
 					},
-					"name_tags_name_meta": &IndexSchema{
+					"name_tags_name_meta": { // &IndexSchema
 						Name:         "name_tags_name_meta",
 						Unique:       true,
 						AllowMissing: true,
@@ -516,10 +516,10 @@ func testComplexSchema() *DBSchema {
 					},
 				},
 			},
-			"visits": &TableSchema{
+			"visits": { // &TableSchema
 				Name: "visits",
 				Indexes: map[string]*IndexSchema{
-					"id": &IndexSchema{
+					"id": { // &IndexSchema
 						Name:   "id",
 						Unique: true,
 						Indexer: &CompoundIndex{
@@ -536,7 +536,7 @@ func testComplexSchema() *DBSchema {
 }
 
 func testComplexDB(t *testing.T) *MemDB {
-	db, err := NewMemDB(testComplexSchema())
+	db, err := NewMemDB(testComplexSchema(), t.TempDir())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

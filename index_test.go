@@ -106,13 +106,13 @@ func TestStringFieldIndex_FromObject(t *testing.T) {
 	}
 
 	badField := StringFieldIndex{"NA", true}
-	ok, val, err = badField.FromObject(obj)
+	_, _, err = badField.FromObject(obj)
 	if err == nil {
 		t.Fatalf("should get error")
 	}
 
 	emptyField := StringFieldIndex{"Empty", true}
-	ok, val, err = emptyField.FromObject(obj)
+	ok, _, err = emptyField.FromObject(obj)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -245,13 +245,13 @@ func TestStringSliceFieldIndex_FromObject(t *testing.T) {
 	}
 
 	badField := StringSliceFieldIndex{"NA", true}
-	ok, vals, err = badField.FromObject(obj)
+	_, _, err = badField.FromObject(obj)
 	if err == nil {
 		t.Fatalf("should get error")
 	}
 
 	emptyField := StringSliceFieldIndex{"QuxEmpty", true}
-	ok, vals, err = emptyField.FromObject(obj)
+	ok, _, err = emptyField.FromObject(obj)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -371,7 +371,7 @@ func TestStringMapFieldIndex_FromObject(t *testing.T) {
 	}
 
 	badField := StringMapFieldIndex{"NA", true}
-	ok, _, err = badField.FromObject(obj)
+	_, _, err = badField.FromObject(obj)
 	if err == nil {
 		t.Fatalf("should get error")
 	}
@@ -452,7 +452,7 @@ func TestUUIDFeldIndex_parseString(t *testing.T) {
 
 	// Parse an odd length UUID.
 	input := "f23"
-	out, err = u.parseString(input, false)
+	_, err = u.parseString(input, false)
 	if err == nil {
 		t.Fatalf("expect error")
 	}
@@ -488,13 +488,13 @@ func TestUUIDFieldIndex_FromObject(t *testing.T) {
 	}
 
 	badField := &UUIDFieldIndex{"NA"}
-	ok, val, err = badField.FromObject(obj)
+	_, _, err = badField.FromObject(obj)
 	if err == nil {
 		t.Fatalf("should get error")
 	}
 
 	emptyField := &UUIDFieldIndex{"Empty"}
-	ok, val, err = emptyField.FromObject(obj)
+	ok, _, err = emptyField.FromObject(obj)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1019,13 +1019,13 @@ func TestBoolFieldIndex_FromObject(t *testing.T) {
 	}
 
 	indexer = BoolFieldIndex{Field: "NA"}
-	ok, val, err = indexer.FromObject(obj)
+	_, _, err = indexer.FromObject(obj)
 	if err == nil {
 		t.Fatalf("should get error")
 	}
 
 	indexer = BoolFieldIndex{Field: "ID"}
-	ok, val, err = indexer.FromObject(obj)
+	_, _, err = indexer.FromObject(obj)
 	if err == nil {
 		t.Fatalf("should get error")
 	}
@@ -1034,17 +1034,17 @@ func TestBoolFieldIndex_FromObject(t *testing.T) {
 func TestBoolFieldIndex_FromArgs(t *testing.T) {
 	indexer := BoolFieldIndex{Field: "Bool"}
 
-	val, err := indexer.FromArgs()
+	_, err := indexer.FromArgs()
 	if err == nil {
 		t.Fatalf("should get err")
 	}
 
-	val, err = indexer.FromArgs(42)
+	_, err = indexer.FromArgs(42)
 	if err == nil {
 		t.Fatalf("should get err")
 	}
 
-	val, err = indexer.FromArgs(true)
+	val, err := indexer.FromArgs(true)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1101,7 +1101,7 @@ func TestFieldSetIndex_FromObject(t *testing.T) {
 	}
 
 	badField := FieldSetIndex{"NA"}
-	ok, val, err = badField.FromObject(obj)
+	_, _, err = badField.FromObject(obj)
 	if err == nil {
 		t.Fatalf("should get error")
 	}
@@ -1192,7 +1192,7 @@ func TestConditionalIndex_FromObject(t *testing.T) {
 	}
 
 	// Pass an invalid type.
-	ok, val, err = indexer.FromObject(t)
+	_, _, err = indexer.FromObject(t)
 	if err == nil {
 		t.Fatalf("expected an error when passing invalid type")
 	}

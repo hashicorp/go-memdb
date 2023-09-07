@@ -69,7 +69,7 @@ schema := &memdb.DBSchema{
 }
 
 // Create a new data base
-db, err := memdb.NewMemDB(schema)
+db, err := memdb.NewMemDB(schema, "./tmpdata")
 if err != nil {
 	panic(err)
 }

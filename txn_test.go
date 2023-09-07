@@ -11,7 +11,7 @@ import (
 )
 
 func testDB(t *testing.T) *MemDB {
-	db, err := NewMemDB(testValidSchema())
+	db, err := NewMemDB(testValidSchema(), t.TempDir())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1198,22 +1198,22 @@ func (*CustomIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
 func TestTxn_InsertGet_LongestPrefix(t *testing.T) {
 	schema := &DBSchema{
 		Tables: map[string]*TableSchema{
-			"main": &TableSchema{
+			"main": { // &TableSchema
 				Name: "main",
 				Indexes: map[string]*IndexSchema{
-					"id": &IndexSchema{
+					"id": { // &IndexSchema
 						Name:   "id",
 						Unique: true,
 						Indexer: &StringFieldIndex{
 							Field: "ID",
 						},
 					},
-					"foo": &IndexSchema{
+					"foo": { // &IndexSchema
 						Name:    "foo",
 						Unique:  true,
 						Indexer: &CustomIndex{},
 					},
-					"nope": &IndexSchema{
+					"nope": { // &IndexSchema
 						Name:    "nope",
 						Indexer: &CustomIndex{},
 					},
@@ -1222,7 +1222,7 @@ func TestTxn_InsertGet_LongestPrefix(t *testing.T) {
 		},
 	}
 
-	db, err := NewMemDB(schema)
+	db, err := NewMemDB(schema, t.TempDir())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1630,17 +1630,17 @@ func TestStringFieldIndexerEmptyPointerFromArgs(t *testing.T) {
 	t.Run("does not error with AllowMissing", func(t *testing.T) {
 		schema := &DBSchema{
 			Tables: map[string]*TableSchema{
-				"main": &TableSchema{
+				"main": { // &TableSchema
 					Name: "main",
 					Indexes: map[string]*IndexSchema{
-						"id": &IndexSchema{
+						"id": { // &IndexSchema
 							Name:   "id",
 							Unique: true,
 							Indexer: &StringFieldIndex{
 								Field: "ID",
 							},
 						},
-						"fu": &IndexSchema{
+						"fu": { // &IndexSchema
 							Name: "fu",
 							Indexer: &StringFieldIndex{
 								Field: "Fu",
@@ -1652,7 +1652,7 @@ func TestStringFieldIndexerEmptyPointerFromArgs(t *testing.T) {
 			},
 		}
 
-		db, err := NewMemDB(schema)
+		db, err := NewMemDB(schema, t.TempDir())
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -1684,17 +1684,17 @@ func TestStringFieldIndexerEmptyPointerFromArgs(t *testing.T) {
 	t.Run("errors without AllowMissing", func(t *testing.T) {
 		schema := &DBSchema{
 			Tables: map[string]*TableSchema{
-				"main": &TableSchema{
+				"main": { // &TableSchema
 					Name: "main",
 					Indexes: map[string]*IndexSchema{
-						"id": &IndexSchema{
+						"id": { // &IndexSchema
 							Name:   "id",
 							Unique: true,
 							Indexer: &StringFieldIndex{
 								Field: "ID",
 							},
 						},
-						"fu": &IndexSchema{
+						"fu": { // &IndexSchema
 							Name: "fu",
 							Indexer: &StringFieldIndex{
 								Field: "Fu",
@@ -1706,7 +1706,7 @@ func TestStringFieldIndexerEmptyPointerFromArgs(t *testing.T) {
 			},
 		}
 
-		db, err := NewMemDB(schema)
+		db, err := NewMemDB(schema, t.TempDir())
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -1742,17 +1742,17 @@ func TestTxn_Changes(t *testing.T) {
 	// index as well as primary and multple tables).
 	schema := &DBSchema{
 		Tables: map[string]*TableSchema{
-			"one": &TableSchema{
+			"one": { // &TableSchema
 				Name: "one",
 				Indexes: map[string]*IndexSchema{
-					"id": &IndexSchema{
+					"id": { // &IndexSchema
 						Name:   "id",
 						Unique: true,
 						Indexer: &StringFieldIndex{
 							Field: "ID",
 						},
 					},
-					"foo": &IndexSchema{
+					"foo": { // &IndexSchema
 						Name: "foo",
 						Indexer: &StringFieldIndex{
 							Field: "Foo",
@@ -1761,10 +1761,10 @@ func TestTxn_Changes(t *testing.T) {
 					},
 				},
 			},
-			"two": &TableSchema{
+			"two": { // &TableSchema
 				Name: "two",
 				Indexes: map[string]*IndexSchema{
-					"id": &IndexSchema{
+					"id": { // &IndexSchema
 						Name:   "id",
 						Unique: true,
 						Indexer: &StringFieldIndex{
@@ -2118,7 +2118,7 @@ func TestTxn_Changes(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.Name, func(t *testing.T) {
-			db, err := NewMemDB(schema)
+			db, err := NewMemDB(schema, t.TempDir())
 			if err != nil {
 				t.Fatalf("Failed to create DB: %s", err)
 			}
@@ -2201,7 +2201,7 @@ func TestTxn_GetIterAndDelete(t *testing.T) {
 			},
 		},
 	}
-	db, err := NewMemDB(schema)
+	db, err := NewMemDB(schema, t.TempDir())
 	assertNilError(t, err)
 
 	key := "aaaa"

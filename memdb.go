@@ -6,11 +6,12 @@
 package memdb
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"unsafe"
 
-	"github.com/hashicorp/go-immutable-radix"
+	iradix "github.com/hashicorp/go-immutable-radix"
 )
 
 // MemDB is an in-memory database providing Atomicity, Consistency, and
@@ -31,12 +32,15 @@ type MemDB struct {
 	root    unsafe.Pointer // *iradix.Tree underneath
 	primary bool
 
+	wal WAL
+
 	// There can only be a single writer at once
 	writer sync.Mutex
 }
 
-// NewMemDB creates a new MemDB with the given schema.
-func NewMemDB(schema *DBSchema) (*MemDB, error) {
+// NewMemDB creates a new MemDB with the given schema and folder in which to
+// store/load the WAL
+func NewMemDB(schema *DBSchema, walLocation string) (*MemDB, error) {
 	// Validate the schema
 	if err := schema.Validate(); err != nil {
 		return nil, err
@@ -52,7 +56,33 @@ func NewMemDB(schema *DBSchema) (*MemDB, error) {
 		return nil, err
 	}
 
+	wal, err := NewSimpleWAL(walLocation)
+	if err != nil {
+		return nil, err
+	}
+	db.wal = wal
+
+	// Reapply any entries recorded in the WAL
+	db.applyWAL()
+
 	return db, nil
+}
+
+// applyWAL iterates through the WAL for the database, and attempts
+// to replay the logs against the current database, taking steps to
+// ensure that it doesn't generate new log entries at the same time.
+func (db *MemDB) applyWAL() {
+	ch := db.wal.Replay()
+
+	txn := db.NoLogWriteTxn()
+
+	for change := range ch {
+		fmt.Println("Writing", change.Table, change.After)
+		err := txn.Insert(change.Table, change.After)
+		fmt.Println(err)
+	}
+
+	txn.Commit()
 }
 
 // DBSchema returns schema in use for introspection.
@@ -79,7 +109,23 @@ func (db *MemDB) Txn(write bool) *Txn {
 		db:      db,
 		write:   write,
 		rootTxn: db.getRoot().Txn(),
+		wal:     db.wal,
 	}
+
+	return txn
+}
+
+// NoLogWriteTxn is used when re-applying the write-ahead-log to ensure
+// that it can't log the re-insertion of previous entries.
+func (db *MemDB) NoLogWriteTxn() *Txn {
+	db.writer.Lock()
+
+	txn := &Txn{
+		db:      db,
+		write:   true,
+		rootTxn: db.getRoot().Txn(),
+	}
+
 	return txn
 }
 

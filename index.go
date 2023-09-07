@@ -576,7 +576,7 @@ func (u *UUIDFieldIndex) parseString(s string, enforceLength bool) ([]byte, erro
 	if enforceLength && l != 36 {
 		return nil, fmt.Errorf("UUID must be 36 characters")
 	} else if l > 36 {
-		return nil, fmt.Errorf("Invalid UUID length. UUID have 36 characters; got %d", l)
+		return nil, fmt.Errorf("invalid UUID length. UUID have 36 characters; got %d", l)
 	}
 
 	hyphens := strings.Count(s, "-")
@@ -588,12 +588,12 @@ func (u *UUIDFieldIndex) parseString(s string, enforceLength bool) ([]byte, erro
 	sanitized := strings.Replace(s, "-", "", -1)
 	sanitizedLength := len(sanitized)
 	if sanitizedLength%2 != 0 {
-		return nil, fmt.Errorf("Input (without hyphens) must be even length")
+		return nil, fmt.Errorf("input (without hyphens) must be even length")
 	}
 
 	dec, err := hex.DecodeString(sanitized)
 	if err != nil {
-		return nil, fmt.Errorf("Invalid UUID: %v", err)
+		return nil, fmt.Errorf("invalid UUID: %v", err)
 	}
 
 	return dec, nil

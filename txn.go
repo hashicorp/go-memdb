@@ -36,6 +36,8 @@ type Txn struct {
 	rootTxn *iradix.Txn
 	after   []func()
 
+	wal WAL
+
 	// changes is used to track the changes performed during the transaction. If
 	// it is nil at transaction start then changes are not tracked.
 	changes Changes
@@ -292,12 +294,17 @@ func (txn *Txn) Insert(table string, obj interface{}) error {
 		}
 	}
 	if txn.changes != nil {
-		txn.changes = append(txn.changes, Change{
+		change := Change{
 			Table:      table,
 			Before:     existing, // might be nil on a create
 			After:      obj,
 			primaryKey: idVal,
-		})
+		}
+		txn.changes = append(txn.changes, change)
+
+		if txn.wal != nil {
+			txn.wal.WriteEntry(change)
+		}
 	}
 	return nil
 }
@@ -387,7 +394,7 @@ func (txn *Txn) DeletePrefix(table string, prefix_index string, prefix string) (
 	}
 
 	if !strings.HasSuffix(prefix_index, "_prefix") {
-		return false, fmt.Errorf("Index name for DeletePrefix must be a prefix index, Got %v ", prefix_index)
+		return false, fmt.Errorf("index name for DeletePrefix must be a prefix index, Got %v ", prefix_index)
 	}
 
 	deletePrefixIndex := strings.TrimSuffix(prefix_index, "_prefix")
