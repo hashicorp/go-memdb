@@ -284,9 +284,7 @@ func TestComplexDB(t *testing.T) {
 	}
 }
 
-// TODO Revisit
 func TestWatchUpdate(t *testing.T) {
-	t.Skip()
 	db := testComplexDB(t)
 	testPopulateData(t, db)
 	txn := db.Txn(false) // read only
