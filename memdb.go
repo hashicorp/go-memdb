@@ -105,7 +105,7 @@ func (db *MemDB) initialize() error {
 		for iName := range tableSchema.Indexes {
 			index := adaptive.NewRadixTree[any]()
 			path := indexPath(tName, iName)
-			root.Insert(path, index)
+			root, _, _ = root.Insert(path, index)
 		}
 	}
 	db.root = unsafe.Pointer(root)
