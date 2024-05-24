@@ -1,4 +1,4 @@
-module github.com/absolutelightning/go-memdb
+module github.com/hashicorp/go-memdb
 
 go 1.21
 
