@@ -65,9 +65,6 @@ func (db *MemDB) DBSchema() *DBSchema {
 // getRoot is used to do an atomic load of the root pointer
 func (db *MemDB) getRoot(clone bool) *adaptive.RadixTree[any] {
 	root := (*adaptive.RadixTree[any])(atomic.LoadPointer(&db.root))
-	if clone {
-		return root.Clone(true)
-	}
 	return root
 }
 
