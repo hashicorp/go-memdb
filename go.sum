@@ -1,5 +1,5 @@
-github.com/absolutelightning/go-immutable-adaptive-radix v1.0.77 h1:HzRjTEqR9nZBxvKFrH6rQPaIIN+WAT3aGgiaC9/08As=
-github.com/absolutelightning/go-immutable-adaptive-radix v1.0.77/go.mod h1:+/nWgzXP46cOw2W+jLxu2lBmEny3bG1RqFXPKTWTLMU=
+github.com/absolutelightning/go-immutable-adaptive-radix v1.0.78 h1:5djMOKyUdH2OPiZmxylIV0rhwqy2/OtZlwP3w9YPNto=
+github.com/absolutelightning/go-immutable-adaptive-radix v1.0.78/go.mod h1:+/nWgzXP46cOw2W+jLxu2lBmEny3bG1RqFXPKTWTLMU=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/hashicorp/go-uuid v1.0.3 h1:2gKiV6YVmrJ1i2CKKa9obLvRieoRGviZFL26PcT/Co8=
