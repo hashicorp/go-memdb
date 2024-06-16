@@ -18,6 +18,11 @@ func testDB(t *testing.T) *MemDB {
 	return db
 }
 
+func testDBB(b *testing.B) *MemDB {
+	db, _ := NewMemDB(testValidSchema())
+	return db
+}
+
 func TestTxn_Read_AbortCommit(t *testing.T) {
 	db := testDB(t)
 	txn := db.Txn(false) // Readonly
@@ -2229,5 +2234,86 @@ func assertNilError(t *testing.T, err error) {
 	t.Helper()
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
+	}
+}
+
+func BenchmarkTxnInsert(b *testing.B) {
+	db := testDBB(b)
+	txn := db.Txn(true)
+
+	obj := testObj()
+	for i := 0; i < b.N; i++ {
+		err := txn.Insert("main", obj)
+		if err != nil {
+			b.Fatalf("err: %v", err)
+		}
+
+		raw, err := txn.First("main", "id", obj.ID)
+		if err != nil {
+			b.Fatalf("err: %v", err)
+		}
+
+		if raw != obj {
+			b.Fatalf("bad: %#v %#v", raw, obj)
+		}
+	}
+}
+
+func BenchmarkTxnDelete(b *testing.B) {
+	db := testDBB(b)
+	txn := db.Txn(true)
+
+	obj := testObjUUID()
+	for i := 0; i < b.N; i++ {
+		err := txn.Insert("main", obj)
+		if err != nil {
+			b.Fatalf("err: %v", err)
+		}
+
+		raw, err := txn.First("main", "id", obj.ID)
+		if err != nil {
+			b.Fatalf("err: %v", err)
+		}
+
+		if raw != obj {
+			b.Fatalf("bad: %#v %#v", raw, obj)
+		}
+		err = txn.Delete("main", obj)
+	}
+}
+
+func BenchmarkTxnDeletePrefix(b *testing.B) {
+	db := testDBB(b)
+	txn := db.Txn(true)
+
+	obj := testObjUUID()
+	for i := 0; i < b.N; i++ {
+		err := txn.Insert("main", obj)
+		if err != nil {
+			b.Fatalf("err: %v", err)
+		}
+
+		raw, err := txn.First("main", "id", obj.ID)
+		if err != nil {
+			b.Fatalf("err: %v", err)
+		}
+
+		if raw != obj {
+			b.Fatalf("bad: %#v %#v", raw, obj)
+		}
+		_, _ = txn.DeletePrefix("main", "id", "")
+	}
+}
+
+func BenchmarkTxnFirst(b *testing.B) {
+	db := testDBB(b)
+	txn := db.Txn(true)
+
+	for i := 0; i < b.N; i++ {
+		obj := testObjUUID()
+		err := txn.Insert("main", obj)
+		_, err = txn.First("main", "id", obj)
+		if err != nil {
+		}
 	}
 }
