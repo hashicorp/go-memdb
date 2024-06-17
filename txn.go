@@ -70,7 +70,7 @@ func (txn *Txn) readableIndex(table, index string) *adaptive.Txn[any] {
 	// Create a read transaction
 	path := indexPath(table, index)
 	raw, _ := txn.rootTxn.Get(path)
-	indexTxn := raw.(*adaptive.RadixTree[any]).Txn()
+	indexTxn := raw.(*adaptive.RadixTree[any]).Txn(false)
 	return indexTxn
 }
 
@@ -91,7 +91,7 @@ func (txn *Txn) writableIndex(table, index string) *adaptive.Txn[any] {
 	// Start a new transaction
 	path := indexPath(table, index)
 	raw, _ := txn.rootTxn.Get(path)
-	indexTxn := raw.(*adaptive.RadixTree[any]).Txn()
+	indexTxn := raw.(*adaptive.RadixTree[any]).Txn(true)
 
 	// If we are the primary DB, enable mutation tracking. Snapshots should
 	// not notify, otherwise we will trigger watches on the primary DB when
