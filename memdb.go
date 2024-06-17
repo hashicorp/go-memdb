@@ -63,7 +63,7 @@ func (db *MemDB) DBSchema() *DBSchema {
 }
 
 // getRoot is used to do an atomic load of the root pointer
-func (db *MemDB) getRoot(clone bool) *adaptive.RadixTree[any] {
+func (db *MemDB) getRoot() *adaptive.RadixTree[any] {
 	root := (*adaptive.RadixTree[any])(atomic.LoadPointer(&db.root))
 	return root
 }
@@ -77,7 +77,7 @@ func (db *MemDB) Txn(write bool) *Txn {
 	txn := &Txn{
 		db:      db,
 		write:   write,
-		rootTxn: db.getRoot(false).Txn(),
+		rootTxn: db.getRoot().Txn(write),
 	}
 	return txn
 }
@@ -91,7 +91,7 @@ func (db *MemDB) Txn(write bool) *Txn {
 func (db *MemDB) Snapshot() *MemDB {
 	clone := &MemDB{
 		schema:  db.schema,
-		root:    unsafe.Pointer(db.getRoot(true)),
+		root:    unsafe.Pointer(db.getRoot()),
 		primary: false,
 	}
 	return clone
@@ -100,7 +100,7 @@ func (db *MemDB) Snapshot() *MemDB {
 // initialize is used to setup the DB for use after creation. This should
 // be called only once after allocating a MemDB.
 func (db *MemDB) initialize() error {
-	root := db.getRoot(false)
+	root := db.getRoot()
 	for tName, tableSchema := range db.schema.Tables {
 		for iName := range tableSchema.Indexes {
 			index := adaptive.NewRadixTree[any]()

@@ -70,7 +70,7 @@ func (txn *Txn) readableIndex(table, index string) *adaptive.Txn[any] {
 	// Create a read transaction
 	path := indexPath(table, index)
 	raw, _ := txn.rootTxn.Get(path)
-	indexTxn := raw.(*adaptive.RadixTree[any]).Txn()
+	indexTxn := raw.(*adaptive.RadixTree[any]).Txn(false)
 	return indexTxn
 }
 
@@ -91,7 +91,7 @@ func (txn *Txn) writableIndex(table, index string) *adaptive.Txn[any] {
 	// Start a new transaction
 	path := indexPath(table, index)
 	raw, _ := txn.rootTxn.Get(path)
-	indexTxn := raw.(*adaptive.RadixTree[any]).Txn()
+	indexTxn := raw.(*adaptive.RadixTree[any]).Txn(true)
 
 	// If we are the primary DB, enable mutation tracking. Snapshots should
 	// not notify, otherwise we will trigger watches on the primary DB when
@@ -602,8 +602,28 @@ func (txn *Txn) LastWatch(table, index string, args ...interface{}) (<-chan stru
 // Note that all values read in the transaction form a consistent snapshot
 // from the time when the transaction was created.
 func (txn *Txn) First(table, index string, args ...interface{}) (interface{}, error) {
-	_, val, err := txn.FirstWatch(table, index, args...)
-	return val, err
+	indexSchema, val, err := txn.getIndexValue(table, index, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the index itself
+	indexTxn := txn.readableIndex(table, indexSchema.Name)
+
+	// Do an exact lookup
+	if indexSchema.Unique && val != nil && indexSchema.Name == index {
+		obj, ok := indexTxn.Get(val)
+		if !ok {
+			return nil, nil
+		}
+		return obj, nil
+	}
+
+	// Handle non-unique index by using an iterator and getting the first value
+	iter := indexTxn.Root().Iterator()
+	iter.SeekPrefix(val)
+	_, value, _ := iter.Next()
+	return value, nil
 }
 
 // Last is used to return the last matching object for
@@ -796,7 +816,7 @@ func (txn *Txn) GetReverse(table, index string, args ...interface{}) (ResultIter
 // See the documentation for ResultIterator to understand the behaviour of the
 // returned ResultIterator.
 func (txn *Txn) LowerBound(table, index string, args ...interface{}) (ResultIterator, error) {
-	indexIter, val, err := txn.getIndexIterator(table, index, args...)
+	indexIter, val, err := txn.getIndexLowerBoundIterator(table, index, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -805,7 +825,7 @@ func (txn *Txn) LowerBound(table, index string, args ...interface{}) (ResultIter
 	indexIter.SeekLowerBound(val)
 
 	// Create an iterator
-	iter := &radixIterator{
+	iter := &radixLowerBoundIterator{
 		iter: indexIter,
 	}
 	return iter, nil
@@ -922,6 +942,22 @@ func (txn *Txn) Changes() Changes {
 	return cs
 }
 
+func (txn *Txn) getIndexLowerBoundIterator(table, index string, args ...interface{}) (*adaptive.LowerBoundIterator[any], []byte, error) {
+	// Get the index value to scan
+	indexSchema, val, err := txn.getIndexValue(table, index, args...)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Get the index itself
+	indexTxn := txn.readableIndex(table, indexSchema.Name)
+	indexRoot := indexTxn.Root()
+
+	// Get an iterator over the index
+	indexIter := indexRoot.LowerBoundIterator()
+	return indexIter, val, nil
+}
+
 func (txn *Txn) getIndexIterator(table, index string, args ...interface{}) (*adaptive.Iterator[any], []byte, error) {
 	// Get the index value to scan
 	indexSchema, val, err := txn.getIndexValue(table, index, args...)
@@ -975,6 +1011,23 @@ func (r *radixIterator) WatchCh() <-chan struct{} {
 }
 
 func (r *radixIterator) Next() interface{} {
+	_, value, ok := r.iter.Next()
+	if !ok {
+		return nil
+	}
+	return value
+}
+
+type radixLowerBoundIterator struct {
+	iter    *adaptive.LowerBoundIterator[any]
+	watchCh <-chan struct{}
+}
+
+func (r *radixLowerBoundIterator) WatchCh() <-chan struct{} {
+	return r.watchCh
+}
+
+func (r *radixLowerBoundIterator) Next() interface{} {
 	_, value, ok := r.iter.Next()
 	if !ok {
 		return nil
