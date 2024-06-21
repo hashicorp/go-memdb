@@ -18,11 +18,6 @@ func testDB(t *testing.T) *MemDB {
 	return db
 }
 
-func testDBB(b *testing.B) *MemDB {
-	db, _ := NewMemDB(testValidSchema())
-	return db
-}
-
 func TestTxn_Read_AbortCommit(t *testing.T) {
 	db := testDB(t)
 	txn := db.Txn(false) // Readonly
