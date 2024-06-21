@@ -63,7 +63,7 @@ func (txn *Txn) readableIndex(table, index string) *adaptive.Txn[any] {
 		key := tableIndex{table, index}
 		exist, ok := txn.modified[key]
 		if ok {
-			return exist.Clone()
+			return exist.Clone(false)
 		}
 	}
 
@@ -1062,7 +1062,7 @@ func (txn *Txn) Snapshot() *Txn {
 
 	snapshot := &Txn{
 		db:      txn.db,
-		rootTxn: txn.rootTxn.Clone(),
+		rootTxn: txn.rootTxn.Clone(true),
 	}
 
 	// Commit sub-transactions into the snapshot
