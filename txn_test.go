@@ -2238,7 +2238,7 @@ func testDBB(b *testing.B) *MemDB {
 	return db
 }
 
-func BenchmarkTxnInsert(b *testing.B) {
+func BenchmarkTxnIterator(b *testing.B) {
 	db := testDBB(b)
 	txn := db.Txn(true)
 
