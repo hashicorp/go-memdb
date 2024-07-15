@@ -2245,18 +2245,15 @@ func BenchmarkTxnIterator(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		sti := strconv.Itoa(i)
 		obj := testObjWithSuffix(sti)
-
 		err := txn.Insert("main", obj)
 		if err != nil {
 			b.Fatalf("err: %v", err)
 		}
-
 		result, err := txn.Get("main", "id")
 		if err != nil {
 			b.Fatalf("err: %v", err)
 		}
 		for itr := result.Next(); itr != nil; itr = result.Next() {
-
 		}
 	}
 }
