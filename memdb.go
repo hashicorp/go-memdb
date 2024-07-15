@@ -6,11 +6,10 @@
 package memdb
 
 import (
+	iradix "github.com/absolutelightning/go-immutable-radix"
 	"sync"
 	"sync/atomic"
 	"unsafe"
-
-	"github.com/hashicorp/go-immutable-radix"
 )
 
 // MemDB is an in-memory database providing Atomicity, Consistency, and

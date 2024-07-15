@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"unsafe"
 
-	iradix "github.com/hashicorp/go-immutable-radix"
+	iradix "github.com/absolutelightning/go-immutable-radix"
 )
 
 const (
