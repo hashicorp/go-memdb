@@ -6,6 +6,7 @@ package memdb
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -2241,14 +2242,16 @@ func BenchmarkTxnInsert(b *testing.B) {
 	db := testDBB(b)
 	txn := db.Txn(true)
 
-	obj := testObj()
 	for i := 0; i < b.N; i++ {
+		sti := strconv.Itoa(i)
+		obj := testObjWithSuffix(sti)
+
 		err := txn.Insert("main", obj)
 		if err != nil {
 			b.Fatalf("err: %v", err)
 		}
 
-		result, err := txn.Get("main", "id", obj.ID)
+		result, err := txn.Get("main", "id")
 		if err != nil {
 			b.Fatalf("err: %v", err)
 		}
