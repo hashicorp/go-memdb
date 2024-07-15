@@ -6,11 +6,10 @@
 package memdb
 
 import (
+	iradix "github.com/absolutelightning/go-immutable-radix"
 	"sync"
 	"sync/atomic"
 	"unsafe"
-
-	"github.com/hashicorp/go-immutable-radix"
 )
 
 // MemDB is an in-memory database providing Atomicity, Consistency, and
@@ -64,8 +63,11 @@ func (db *MemDB) DBSchema() *DBSchema {
 }
 
 // getRoot is used to do an atomic load of the root pointer
-func (db *MemDB) getRoot() *iradix.Tree {
+func (db *MemDB) getRoot(clone bool) *iradix.Tree {
 	root := (*iradix.Tree)(atomic.LoadPointer(&db.root))
+	if clone {
+		root = root.Clone()
+	}
 	return root
 }
 
@@ -78,7 +80,7 @@ func (db *MemDB) Txn(write bool) *Txn {
 	txn := &Txn{
 		db:      db,
 		write:   write,
-		rootTxn: db.getRoot().Txn(),
+		rootTxn: db.getRoot(false).Txn(),
 	}
 	return txn
 }
@@ -92,7 +94,7 @@ func (db *MemDB) Txn(write bool) *Txn {
 func (db *MemDB) Snapshot() *MemDB {
 	clone := &MemDB{
 		schema:  db.schema,
-		root:    unsafe.Pointer(db.getRoot()),
+		root:    unsafe.Pointer(db.getRoot(true)),
 		primary: false,
 	}
 	return clone
@@ -101,7 +103,7 @@ func (db *MemDB) Snapshot() *MemDB {
 // initialize is used to setup the DB for use after creation. This should
 // be called only once after allocating a MemDB.
 func (db *MemDB) initialize() error {
-	root := db.getRoot()
+	root := db.getRoot(false)
 	for tName, tableSchema := range db.schema.Tables {
 		for iName := range tableSchema.Indexes {
 			index := iradix.New()
