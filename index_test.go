@@ -47,6 +47,37 @@ func String(s string) *string {
 	return &s
 }
 
+func testObjWithSuffix(suf string) *TestObject {
+	b := true
+	obj := &TestObject{
+		ID:  "my-cool-obj" + suf,
+		Foo: "Testing",
+		Fu:  String("Fu"),
+		Boo: nil,
+		Bar: 42,
+		Baz: "yep",
+		Bam: &b,
+		Qux: []string{"Test", "Test2"},
+		Zod: map[string]string{
+			"Role":          "Server",
+			"instance_type": "m3.medium",
+			"":              "asdf",
+		},
+		Int:    int(1),
+		Int8:   int8(-1 << 7),
+		Int16:  int16(-1 << 15),
+		Int32:  int32(-1 << 31),
+		Int64:  int64(-1 << 63),
+		Uint:   uint(1),
+		Uint8:  uint8(1<<8 - 1),
+		Uint16: uint16(1<<16 - 1),
+		Uint32: uint32(1<<32 - 1),
+		Uint64: uint64(1<<64 - 1),
+		Bool:   false,
+	}
+	return obj
+}
+
 func testObj() *TestObject {
 	b := true
 	obj := &TestObject{
