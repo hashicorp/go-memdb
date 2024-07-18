@@ -96,7 +96,6 @@ func BenchmarkMemDB_Snapshot(b *testing.B) {
 		txn := db.Txn(true)
 		txn.Insert("main", obj)
 		txn.Commit()
-
 	}
 	// Clone the db
 	db.Snapshot()
