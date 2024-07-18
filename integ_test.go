@@ -318,7 +318,7 @@ func TestWatchUpdate(t *testing.T) {
 	watchSetPrefix.Add(watch)
 
 	// Write to a snapshot.
-	snap := db.Snapshot()
+	snap := db.Snapshot(true)
 	txn2 := snap.Txn(true) // write
 	noErr(t, txn2.Delete("people", raw))
 	txn2.Commit()

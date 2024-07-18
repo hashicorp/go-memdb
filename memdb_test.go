@@ -4,6 +4,7 @@
 package memdb
 
 import (
+	"fmt"
 	"strconv"
 	"testing"
 	"time"
@@ -57,7 +58,7 @@ func TestMemDB_Snapshot(t *testing.T) {
 	txn.Commit()
 
 	// Clone the db
-	db2 := db.Snapshot()
+	db2 := db.Snapshot(true)
 
 	// Remove the object
 	txn = db.Txn(true)
@@ -90,13 +91,17 @@ func BenchmarkMemDB_Snapshot(b *testing.B) {
 		b.Fatalf("err: %v", err)
 	}
 
+	counter := 0
 	for i := 0; i < b.N; i++ {
 		// Add an object
+		counter++
 		obj := testObjWithSuffix(strconv.Itoa(i))
 		txn := db.Txn(true)
 		txn.Insert("main", obj)
 		txn.Commit()
 	}
 	// Clone the db
-	db.Snapshot()
+	snap := db.Snapshot(false)
+	fmt.Println(snap.getRoot(false).Len())
+	fmt.Println(counter)
 }

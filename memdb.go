@@ -91,10 +91,10 @@ func (db *MemDB) Txn(write bool) *Txn {
 // If MemDB is storing reference-based values (pointers, maps, slices, etc.),
 // the Snapshot will not deep copy those values. Therefore, it is still unsafe
 // to modify any inserted values in either DB.
-func (db *MemDB) Snapshot() *MemDB {
+func (db *MemDB) Snapshot(write bool) *MemDB {
 	clone := &MemDB{
 		schema:  db.schema,
-		root:    unsafe.Pointer(db.getRoot(true)),
+		root:    unsafe.Pointer(db.getRoot(write)),
 		primary: false,
 	}
 	return clone
