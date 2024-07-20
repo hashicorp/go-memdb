@@ -63,10 +63,10 @@ func (db *MemDB) DBSchema() *DBSchema {
 }
 
 // getRoot is used to do an atomic load of the root pointer
-func (db *MemDB) getRoot(clone bool) *iradix.Tree {
+func (db *MemDB) getRoot(snap bool) *iradix.Tree {
 	root := (*iradix.Tree)(atomic.LoadPointer(&db.root))
-	if clone {
-		root = root.Clone()
+	if snap {
+		root = root.Snapshot()
 	}
 	return root
 }
@@ -91,10 +91,10 @@ func (db *MemDB) Txn(write bool) *Txn {
 // If MemDB is storing reference-based values (pointers, maps, slices, etc.),
 // the Snapshot will not deep copy those values. Therefore, it is still unsafe
 // to modify any inserted values in either DB.
-func (db *MemDB) Snapshot(write bool) *MemDB {
+func (db *MemDB) Snapshot() *MemDB {
 	clone := &MemDB{
 		schema:  db.schema,
-		root:    unsafe.Pointer(db.getRoot(write)),
+		root:    unsafe.Pointer(db.getRoot(true)),
 		primary: false,
 	}
 	return clone

@@ -71,7 +71,9 @@ func (txn *Txn) readableIndex(table, index string) *iradix.Txn {
 	// Create a read transaction
 	path := indexPath(table, index)
 	raw, _ := txn.rootTxn.Get(path)
-	indexTxn := raw.(*iradix.Tree).Txn()
+	tree := raw.(*iradix.Tree)
+	tree.Root().SetSnapShotNode(txn.rootTxn.Root().GetSnapshotNode())
+	indexTxn := tree.Txn()
 	return indexTxn
 }
 
@@ -92,7 +94,9 @@ func (txn *Txn) writableIndex(table, index string) *iradix.Txn {
 	// Start a new transaction
 	path := indexPath(table, index)
 	raw, _ := txn.rootTxn.Get(path)
-	indexTxn := raw.(*iradix.Tree).Txn()
+	tree := raw.(*iradix.Tree)
+	tree.Root().SetSnapShotNode(txn.rootTxn.Root().GetSnapshotNode())
+	indexTxn := tree.Txn()
 
 	// If we are the primary DB, enable mutation tracking. Snapshots should
 	// not notify, otherwise we will trigger watches on the primary DB when
