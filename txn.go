@@ -72,7 +72,7 @@ func (txn *Txn) readableIndex(table, index string) *iradix.Txn {
 	path := indexPath(table, index)
 	raw, _ := txn.rootTxn.Get(path)
 	tree := raw.(*iradix.Tree)
-	tree.Root().SetSnapShotNode(txn.rootTxn.Root().GetSnapshotNode())
+	tree.Root().SetSnapshot(txn.rootTxn.Root().GetSnapshot())
 	indexTxn := tree.Txn()
 	return indexTxn
 }
@@ -95,7 +95,7 @@ func (txn *Txn) writableIndex(table, index string) *iradix.Txn {
 	path := indexPath(table, index)
 	raw, _ := txn.rootTxn.Get(path)
 	tree := raw.(*iradix.Tree)
-	tree.Root().SetSnapShotNode(txn.rootTxn.Root().GetSnapshotNode())
+	tree.Root().SetSnapshot(txn.rootTxn.Root().GetSnapshot())
 	indexTxn := tree.Txn()
 
 	// If we are the primary DB, enable mutation tracking. Snapshots should

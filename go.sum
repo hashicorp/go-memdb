@@ -1,6 +1,5 @@
-github.com/absolutelightning/go-immutable-radix v1.0.6/go.mod h1:d1zae/VqcWHxzHWfS3slhyNQ4ecJeQSZE1j5J6ywEIU=
-github.com/absolutelightning/go-immutable-radix v1.0.7 h1:RsNmKOEGDCdDuZiurtmgYzXxy8DdXpFJvSfHUojjfAU=
-github.com/absolutelightning/go-immutable-radix v1.0.7/go.mod h1:d1zae/VqcWHxzHWfS3slhyNQ4ecJeQSZE1j5J6ywEIU=
+github.com/absolutelightning/go-immutable-radix v1.0.8 h1:FGtbJ+k6nMRlsKIXX7QJsqLK3wwpY/xEy5xD62PcIoA=
+github.com/absolutelightning/go-immutable-radix v1.0.8/go.mod h1:d1zae/VqcWHxzHWfS3slhyNQ4ecJeQSZE1j5J6ywEIU=
 github.com/hashicorp/go-uuid v1.0.0 h1:RS8zrF7PhGwyNPOtxSClXXj9HA8feRnJzgnI1RJCSnM=
 github.com/hashicorp/go-uuid v1.0.0/go.mod h1:6SBZvOh/SIDV7/2o3Jml5SYk/TvGqwFJ/bN7x4byOro=
 github.com/hashicorp/golang-lru v0.5.0 h1:CL2msUPvZTLb5O648aiLNJw3hnBxN2+1Jq8rCOH9wdo=
