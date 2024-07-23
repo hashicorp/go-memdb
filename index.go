@@ -89,9 +89,13 @@ func (s *StringFieldIndex) FromObject(obj interface{}) (bool, []byte, error) {
 		val = strings.ToLower(val)
 	}
 
-	// Add the null character as a terminator
-	val += "\x00"
-	return true, []byte(val), nil
+	return true, nulTerminatedByteSlice(val), nil
+}
+
+func nulTerminatedByteSlice(val string) []byte {
+	rv := make([]byte, len(val)+1)
+	copy(rv, val)
+	return rv
 }
 
 func (s *StringFieldIndex) FromArgs(args ...interface{}) ([]byte, error) {
@@ -105,9 +109,9 @@ func (s *StringFieldIndex) FromArgs(args ...interface{}) ([]byte, error) {
 	if s.Lowercase {
 		arg = strings.ToLower(arg)
 	}
-	// Add the null character as a terminator
-	arg += "\x00"
-	return []byte(arg), nil
+
+	// Convert to a []byte with a trailing nul byte
+	return nulTerminatedByteSlice(arg), nil
 }
 
 func (s *StringFieldIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
@@ -148,7 +152,7 @@ func (s *StringSliceFieldIndex) FromObject(obj interface{}) (bool, [][]byte, err
 
 	length := fv.Len()
 	vals := make([][]byte, 0, length)
-	for i := 0; i < fv.Len(); i++ {
+	for i := 0; i < length; i++ {
 		val := fv.Index(i).String()
 		if val == "" {
 			continue
@@ -159,8 +163,7 @@ func (s *StringSliceFieldIndex) FromObject(obj interface{}) (bool, [][]byte, err
 		}
 
 		// Add the null character as a terminator
-		val += "\x00"
-		vals = append(vals, []byte(val))
+		vals = append(vals, nulTerminatedByteSlice(val))
 	}
 	if len(vals) == 0 {
 		return false, nil, nil
@@ -180,8 +183,7 @@ func (s *StringSliceFieldIndex) FromArgs(args ...interface{}) ([]byte, error) {
 		arg = strings.ToLower(arg)
 	}
 	// Add the null character as a terminator
-	arg += "\x00"
-	return []byte(arg), nil
+	return nulTerminatedByteSlice(arg), nil
 }
 
 func (s *StringSliceFieldIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
@@ -579,24 +581,64 @@ func (u *UUIDFieldIndex) parseString(s string, enforceLength bool) ([]byte, erro
 		return nil, fmt.Errorf("Invalid UUID length. UUID have 36 characters; got %d", l)
 	}
 
-	hyphens := strings.Count(s, "-")
-	if hyphens > 4 {
-		return nil, fmt.Errorf(`UUID should have maximum of 4 "-"; got %d`, hyphens)
-	}
+	rv := make([]byte, 0, 16)
+loop:
+	for i := 0; i < 16; i++ {
+		switch l {
+		case 0:
+			break loop
+		case 1:
+			return nil, errors.New("odd length uuid")
+		}
 
-	// The sanitized length is the length of the original string without the "-".
-	sanitized := strings.Replace(s, "-", "", -1)
-	sanitizedLength := len(sanitized)
-	if sanitizedLength%2 != 0 {
-		return nil, fmt.Errorf("Input (without hyphens) must be even length")
+		b, err := hexToByte(s[:2])
+		if err != nil {
+			return nil, err
+		}
+		rv = append(rv, b)
+		if len(s) > 2 {
+			if s[2] == '-' {
+				s = s[3:]
+				l = l - 3
+			} else {
+				s = s[2:]
+				l = l - 2
+			}
+		} else {
+			l = l - 2
+		}
 	}
+	return rv, nil
+}
 
-	dec, err := hex.DecodeString(sanitized)
-	if err != nil {
-		return nil, fmt.Errorf("Invalid UUID: %v", err)
+const reverseHexTable = "" +
+	"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+	"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+	"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+	"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\xff\xff\xff\xff\xff\xff" +
+	"\xff\x0a\x0b\x0c\x0d\x0e\x0f\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+	"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+	"\xff\x0a\x0b\x0c\x0d\x0e\x0f\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+	"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+	"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+	"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+	"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+	"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+	"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+	"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+	"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+	"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff"
+
+func hexToByte(v string) (byte, error) {
+	a := reverseHexTable[v[0]]
+	b := reverseHexTable[v[1]]
+	if a > 0x0f {
+		return 0, hex.InvalidByteError(v[0])
 	}
-
-	return dec, nil
+	if b > 0x0f {
+		return 0, hex.InvalidByteError(v[1])
+	}
+	return (a << 4) | b, nil
 }
 
 // FieldSetIndex is used to extract a field from an object using reflection and
@@ -837,7 +879,7 @@ forloop:
 	}
 
 	// Start with something higher to avoid resizing if possible
-	out := make([][]byte, 0, len(c.Indexes)^3)
+	out := make([][]byte, 0, len(c.Indexes)<<3)
 
 	// We are walking through the builder slice essentially in a depth-first fashion,
 	// building the prefix and leaves as we go. If AllowMissing is false, we only insert
@@ -906,7 +948,8 @@ func (c *CompoundMultiIndex) FromArgs(args ...interface{}) ([]byte, error) {
 		}
 	}
 
-	var out []byte
+	// To avoid growing the slice with each call, start with an optimistically preallocated slice
+	out := make([]byte, 0, 32)
 	var val []byte
 	var err error
 	for i, idx := range c.Indexes {
