@@ -13,6 +13,12 @@ func TestMemDB_Isolation(t *testing.T) {
 	id2 := "object-two"
 	id3 := "object-three"
 
+	mustNoError := func(t *testing.T, err error) {
+		if err != nil {
+			t.Fatalf("unexpected test error: %v", err)
+		}
+	}
+
 	setup := func(t *testing.T) *MemDB {
 		t.Helper()
 
@@ -25,11 +31,11 @@ func TestMemDB_Isolation(t *testing.T) {
 		obj1a := testObj()
 		obj1a.ID = id1
 		txn := db.Txn(true)
-		txn.Insert("main", obj1a)
+		mustNoError(t, txn.Insert("main", obj1a))
 
 		obj3 := testObj()
 		obj3.ID = id3
-		txn.Insert("main", obj3)
+		mustNoError(t, txn.Insert("main", obj3))
 		txn.Commit()
 		return db
 	}
@@ -43,18 +49,16 @@ func TestMemDB_Isolation(t *testing.T) {
 		obj1b.ID = id1
 		txn1 := db.Txn(true)
 		obj1b.Baz = "nope"
-		txn1.Insert("main", obj1b)
+		mustNoError(t, txn1.Insert("main", obj1b))
 
 		// Insert an object
 		obj2 := testObj()
 		obj2.ID = id2
-		txn1.Insert("main", obj2)
+		mustNoError(t, txn1.Insert("main", obj2))
 
 		txn2 := db2.Txn(false)
 		out, err := txn2.First("main", "id", id1)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		mustNoError(t, err)
 		if out == nil {
 			t.Fatalf("should exist")
 		}
@@ -63,9 +67,7 @@ func TestMemDB_Isolation(t *testing.T) {
 		}
 
 		out, err = txn2.First("main", "id", id2)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		mustNoError(t, err)
 		if out != nil {
 			t.Fatalf("read from snapshot should not observe uncommitted insert (dirty read)")
 		}
@@ -74,9 +76,7 @@ func TestMemDB_Isolation(t *testing.T) {
 		db3 := db.Snapshot()
 		txn3 := db3.Txn(false)
 		out, err = txn3.First("main", "id", id1)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		mustNoError(t, err)
 		if out == nil {
 			t.Fatalf("should exist")
 		}
@@ -93,18 +93,16 @@ func TestMemDB_Isolation(t *testing.T) {
 		obj1b.ID = id1
 		txn1 := db.Txn(true)
 		obj1b.Baz = "nope"
-		txn1.Insert("main", obj1b)
+		mustNoError(t, txn1.Insert("main", obj1b))
 
 		// Insert an object
 		obj2 := testObj()
 		obj2.ID = id2
-		txn1.Insert("main", obj2)
+		mustNoError(t, txn1.Insert("main", obj2))
 
 		txn2 := db.Txn(false)
 		out, err := txn2.First("main", "id", id1)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		mustNoError(t, err)
 		if out == nil {
 			t.Fatalf("should exist")
 		}
@@ -113,9 +111,7 @@ func TestMemDB_Isolation(t *testing.T) {
 		}
 
 		out, err = txn2.First("main", "id", id2)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		mustNoError(t, err)
 		if out != nil {
 			t.Fatalf("read from transaction should not observe uncommitted insert (dirty read)")
 		}
@@ -130,21 +126,19 @@ func TestMemDB_Isolation(t *testing.T) {
 		obj1b.ID = id1
 		txn1 := db.Txn(true)
 		obj1b.Baz = "nope"
-		txn1.Insert("main", obj1b)
+		mustNoError(t, txn1.Insert("main", obj1b))
 
 		// Insert an object
 		obj2 := testObj()
 		obj2.ID = id3
-		txn1.Insert("main", obj2)
+		mustNoError(t, txn1.Insert("main", obj2))
 
 		// Commit
 		txn1.Commit()
 
 		txn2 := db2.Txn(false)
 		out, err := txn2.First("main", "id", id1)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		mustNoError(t, err)
 		if out == nil {
 			t.Fatalf("should exist")
 		}
@@ -153,9 +147,7 @@ func TestMemDB_Isolation(t *testing.T) {
 		}
 
 		out, err = txn2.First("main", "id", id2)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		mustNoError(t, err)
 		if out != nil {
 			t.Fatalf("read from snapshot should not observe committed write from another transaction (non-repeatable read)")
 		}
@@ -170,12 +162,12 @@ func TestMemDB_Isolation(t *testing.T) {
 		obj1b.ID = id1
 		txn1 := db.Txn(true)
 		obj1b.Baz = "nope"
-		txn1.Insert("main", obj1b)
+		mustNoError(t, txn1.Insert("main", obj1b))
 
 		// Insert an object
 		obj2 := testObj()
 		obj2.ID = id3
-		txn1.Insert("main", obj2)
+		mustNoError(t, txn1.Insert("main", obj2))
 
 		txn2 := db.Txn(false)
 
@@ -183,9 +175,7 @@ func TestMemDB_Isolation(t *testing.T) {
 		txn1.Commit()
 
 		out, err := txn2.First("main", "id", id1)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		mustNoError(t, err)
 		if out == nil {
 			t.Fatalf("should exist")
 		}
@@ -194,9 +184,7 @@ func TestMemDB_Isolation(t *testing.T) {
 		}
 
 		out, err = txn2.First("main", "id", id2)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		mustNoError(t, err)
 		if out != nil {
 			t.Fatalf("read from transaction should not observe committed write from another transaction (non-repeatable read)")
 		}
@@ -209,9 +197,7 @@ func TestMemDB_Isolation(t *testing.T) {
 
 		txn2 := db2.Txn(false)
 		iter, err := txn2.Get("main", "id_prefix", "object")
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		mustNoError(t, err)
 		out := iter.Next()
 		if out == nil || out.(*TestObject).ID != id1 {
 			t.Fatal("missing expected object 'object-one'")
@@ -221,7 +207,7 @@ func TestMemDB_Isolation(t *testing.T) {
 		txn1 := db.Txn(true)
 		obj2 := testObj()
 		obj2.ID = id2
-		txn1.Insert("main", obj2)
+		mustNoError(t, txn1.Insert("main", obj2))
 		txn1.Commit()
 
 		out = iter.Next()
@@ -240,16 +226,12 @@ func TestMemDB_Isolation(t *testing.T) {
 		// Remove an object using an outdated pointer
 		txn1 = db.Txn(true)
 		obj1, err := txn1.First("main", "id", id1)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-		txn1.Delete("main", obj1)
+		mustNoError(t, err)
+		mustNoError(t, txn1.Delete("main", obj1))
 		txn1.Commit()
 
 		iter, err = txn2.Get("main", "id_prefix", "object")
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		mustNoError(t, err)
 
 		out = iter.Next()
 		if out == nil || out.(*TestObject).ID != id1 {
@@ -267,9 +249,7 @@ func TestMemDB_Isolation(t *testing.T) {
 
 		txn2 := db.Txn(false)
 		iter, err := txn2.Get("main", "id_prefix", "object")
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		mustNoError(t, err)
 		out := iter.Next()
 		if out == nil || out.(*TestObject).ID != id1 {
 			t.Fatal("missing expected object 'object-one'")
@@ -279,7 +259,7 @@ func TestMemDB_Isolation(t *testing.T) {
 		txn1 := db.Txn(true)
 		obj2 := testObj()
 		obj2.ID = id2
-		txn1.Insert("main", obj2)
+		mustNoError(t, txn1.Insert("main", obj2))
 		txn1.Commit()
 
 		out = iter.Next()
@@ -298,10 +278,8 @@ func TestMemDB_Isolation(t *testing.T) {
 		// Remove an object using an outdated pointer
 		txn1 = db.Txn(true)
 		obj1, err := txn1.First("main", "id", id1)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-		txn1.Delete("main", obj1)
+		mustNoError(t, err)
+		mustNoError(t, txn1.Delete("main", obj1))
 		txn1.Commit()
 
 		iter, err = txn2.Get("main", "id_prefix", "object")
@@ -328,14 +306,12 @@ func TestMemDB_Isolation(t *testing.T) {
 		obj1 := testObj()
 		obj1.ID = id1
 		obj1.Baz = "also"
-		txn2.Insert("main", obj1)
+		mustNoError(t, txn2.Insert("main", obj1))
 		txn2.Commit()
 
 		txn1 := db.Txn(false)
 		out, err := txn1.First("main", "id", id1)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		mustNoError(t, err)
 		if out == nil {
 			t.Fatalf("should exist")
 		}
