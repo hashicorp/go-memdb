@@ -63,14 +63,14 @@ func (txn *Txn) readableIndex(table, index string) *adaptive.Txn[any] {
 		key := tableIndex{table, index}
 		exist, ok := txn.modified[key]
 		if ok {
-			return exist.Clone(false)
+			return exist.Clone()
 		}
 	}
 
 	// Create a read transaction
 	path := indexPath(table, index)
 	raw, _ := txn.rootTxn.Get(path)
-	indexTxn := raw.(*adaptive.RadixTree[any]).Txn(false)
+	indexTxn := raw.(*adaptive.RadixTree[any]).Txn()
 	return indexTxn
 }
 
@@ -91,7 +91,7 @@ func (txn *Txn) writableIndex(table, index string) *adaptive.Txn[any] {
 	// Start a new transaction
 	path := indexPath(table, index)
 	raw, _ := txn.rootTxn.Get(path)
-	indexTxn := raw.(*adaptive.RadixTree[any]).Txn(true)
+	indexTxn := raw.(*adaptive.RadixTree[any]).Txn()
 
 	// If we are the primary DB, enable mutation tracking. Snapshots should
 	// not notify, otherwise we will trigger watches on the primary DB when
@@ -1062,7 +1062,7 @@ func (txn *Txn) Snapshot() *Txn {
 
 	snapshot := &Txn{
 		db:      txn.db,
-		rootTxn: txn.rootTxn.Clone(true),
+		rootTxn: txn.rootTxn.Clone(),
 	}
 
 	// Commit sub-transactions into the snapshot

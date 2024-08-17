@@ -77,7 +77,7 @@ func (db *MemDB) Txn(write bool) *Txn {
 	txn := &Txn{
 		db:      db,
 		write:   write,
-		rootTxn: db.getRoot().Txn(write),
+		rootTxn: db.getRoot().Txn(),
 	}
 	return txn
 }
