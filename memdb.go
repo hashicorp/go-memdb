@@ -97,25 +97,26 @@ func (db *MemDB) Snapshot() *MemDB {
 
 // CreateIndexes is used for create indexes after the database already exists.
 func (db *MemDB) CreateIndexes(table string, schema ...*IndexSchema) error {
-	// lock the writer but create the transaction afterwards
-	db.writer.Lock()
+	transaction := db.Txn(true)
+	defer transaction.Abort()
 
-	// create a edge for each index to create
+	// create an edge for each index to create
 	root := db.getRoot()
 	for _, indexSchema := range schema {
 		index := iradix.New()
 		path := indexPath(table, indexSchema.Name)
-		root, _, _ = root.Insert(path, index)
+		transaction.rootTxn.Insert(path, index)
+		//root, _, _ = root.Insert(path, index)
 	}
 	db.root = unsafe.Pointer(root)
 
-	// now we can create the transaction
-	transaction := &Txn{
-		db:      db,
-		write:   true,
-		rootTxn: db.getRoot().Txn(),
-	}
-	defer transaction.Abort()
+	//// now we can create the transaction
+	//transaction := &Txn{
+	//	db:      db,
+	//	write:   true,
+	//	rootTxn: db.getRoot().Txn(),
+	//}
+	//defer transaction.Abort()
 
 	// create the requested indexes
 	if err := transaction.CreateIndexes(table, schema...); err != nil {

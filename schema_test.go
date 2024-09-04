@@ -13,10 +13,6 @@ func testValidSchema() *DBSchema {
 						Unique:  true,
 						Indexer: &StringFieldIndex{Field: "ID"},
 					},
-					"foo": &IndexSchema{
-						Name:    "foo",
-						Indexer: &StringFieldIndex{Field: "Foo"},
-					},
 					"qux": &IndexSchema{
 						Name:    "qux",
 						Indexer: &StringSliceFieldIndex{Field: "Qux"},

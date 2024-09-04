@@ -15,29 +15,30 @@ import (
 )
 
 type TestObject struct {
-	ID       string
-	Foo      string
-	Fu       *string
-	Boo      *string
-	Bar      int
-	Baz      string
-	Bam      *bool
-	Empty    string
-	Qux      []string
-	QuxEmpty []string
-	Zod      map[string]string
-	ZodEmpty map[string]string
-	Int      int
-	Int8     int8
-	Int16    int16
-	Int32    int32
-	Int64    int64
-	Uint     uint
-	Uint8    uint8
-	Uint16   uint16
-	Uint32   uint32
-	Uint64   uint64
-	Bool     bool
+	ID        string
+	Foo       string
+	Fu        *string
+	Boo       *string
+	Bar       int
+	Baz       string
+	Bam       *bool
+	Empty     string
+	Qux       []string
+	QuxEmpty  []string
+	Zod       map[string]string
+	ZodEmpty  map[string]string
+	Int       int
+	Int8      int8
+	Int16     int16
+	Int32     int32
+	Int64     int64
+	Uint      uint
+	Uint8     uint8
+	Uint16    uint16
+	Uint32    uint32
+	Uint64    uint64
+	Bool      bool
+	Uint32Map map[uint32]struct{}
 }
 
 func String(s string) *string {
@@ -47,7 +48,7 @@ func String(s string) *string {
 func testObj() *TestObject {
 	b := true
 	obj := &TestObject{
-		ID:  "my-cool-obj",
+		ID:  fmt.Sprintf("my-cool-obj-%v", rand.Int()),
 		Foo: "Testing",
 		Fu:  String("Fu"),
 		Boo: nil,
@@ -60,17 +61,18 @@ func testObj() *TestObject {
 			"instance_type": "m3.medium",
 			"":              "asdf",
 		},
-		Int:    int(1),
-		Int8:   int8(-1 << 7),
-		Int16:  int16(-1 << 15),
-		Int32:  int32(-1 << 31),
-		Int64:  int64(-1 << 63),
-		Uint:   uint(1),
-		Uint8:  uint8(1<<8 - 1),
-		Uint16: uint16(1<<16 - 1),
-		Uint32: uint32(1<<32 - 1),
-		Uint64: uint64(1<<64 - 1),
-		Bool:   false,
+		Int:       int(1),
+		Int8:      int8(-1 << 7),
+		Int16:     int16(-1 << 15),
+		Int32:     int32(-1 << 31),
+		Int64:     int64(-1 << 63),
+		Uint:      uint(1),
+		Uint8:     uint8(1<<8 - 1),
+		Uint16:    uint16(1<<16 - 1),
+		Uint32:    uint32(1<<32 - 1),
+		Uint64:    uint64(1<<64 - 1),
+		Bool:      false,
+		Uint32Map: map[uint32]struct{}{},
 	}
 	return obj
 }
