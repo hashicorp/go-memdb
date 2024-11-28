@@ -6,11 +6,10 @@
 package memdb
 
 import (
+	adaptive "github.com/absolutelightning/go-immutable-adaptive-radix"
 	"sync"
 	"sync/atomic"
 	"unsafe"
-
-	"github.com/hashicorp/go-immutable-radix"
 )
 
 // MemDB is an in-memory database providing Atomicity, Consistency, and
@@ -45,7 +44,7 @@ func NewMemDB(schema *DBSchema) (*MemDB, error) {
 	// Create the MemDB
 	db := &MemDB{
 		schema:  schema,
-		root:    unsafe.Pointer(iradix.New()),
+		root:    unsafe.Pointer(adaptive.NewRadixTree[any]()),
 		primary: true,
 	}
 	if err := db.initialize(); err != nil {
@@ -64,8 +63,8 @@ func (db *MemDB) DBSchema() *DBSchema {
 }
 
 // getRoot is used to do an atomic load of the root pointer
-func (db *MemDB) getRoot() *iradix.Tree {
-	root := (*iradix.Tree)(atomic.LoadPointer(&db.root))
+func (db *MemDB) getRoot() *adaptive.RadixTree[any] {
+	root := (*adaptive.RadixTree[any])(atomic.LoadPointer(&db.root))
 	return root
 }
 
@@ -104,7 +103,7 @@ func (db *MemDB) initialize() error {
 	root := db.getRoot()
 	for tName, tableSchema := range db.schema.Tables {
 		for iName := range tableSchema.Indexes {
-			index := iradix.New()
+			index := adaptive.NewRadixTree[any]()
 			path := indexPath(tName, iName)
 			root, _, _ = root.Insert(path, index)
 		}
