@@ -78,6 +78,37 @@ func testObj() *TestObject {
 	return obj
 }
 
+func testObjWithId(id int) *TestObject {
+	b := true
+	obj := &TestObject{
+		ID:  fmt.Sprintf("my-cool-obj-%d", id),
+		Foo: "Testing",
+		Fu:  String("Fu"),
+		Boo: nil,
+		Bar: 42,
+		Baz: "yep",
+		Bam: &b,
+		Qux: []string{"Test", "Test2"},
+		Zod: map[string]string{
+			"Role":          "Server",
+			"instance_type": "m3.medium",
+			"":              "asdf",
+		},
+		Int:    int(1),
+		Int8:   int8(-1 << 7),
+		Int16:  int16(-1 << 15),
+		Int32:  int32(-1 << 31),
+		Int64:  int64(-1 << 63),
+		Uint:   uint(1),
+		Uint8:  uint8(1<<8 - 1),
+		Uint16: uint16(1<<16 - 1),
+		Uint32: uint32(1<<32 - 1),
+		Uint64: uint64(1<<64 - 1),
+		Bool:   false,
+	}
+	return obj
+}
+
 func TestStringFieldIndex_FromObject(t *testing.T) {
 	obj := testObj()
 	indexer := StringFieldIndex{"Foo", false}
