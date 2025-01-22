@@ -6,6 +6,7 @@
 package memdb
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"unsafe"
@@ -65,6 +66,15 @@ func NewMemDBWithData(schema *DBSchema, data []*TableData, workerCount int) (*Me
 	// Validate the schema
 	if err := schema.Validate(); err != nil {
 		return nil, err
+	}
+
+	// Validate if data has all unique table names
+	tables := make(map[string]struct{})
+	for _, tableData := range data {
+		if _, ok := tables[tableData.Table]; ok {
+			return nil, fmt.Errorf("table %q is duplicated in data", tableData.Table)
+		}
+		tables[tableData.Table] = struct{}{}
 	}
 
 	// Create the MemDB
