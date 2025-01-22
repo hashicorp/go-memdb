@@ -101,13 +101,13 @@ func TestNewMemDBWithData(t *testing.T) {
 		t.Fatalf("error initialized memdb with data")
 	}
 	txn := db.Txn(false)
-	for _, obj := range objects {
+	for idx, obj := range objects {
 		res, err := txn.First("main", "id", obj.(*TestObject).ID)
 		if err != nil {
-			t.Fatalf("error")
+			t.Fatalf("should exist")
 		}
-		if res == nil {
-			t.Fatalf("fatal")
+		if res != objects[idx] {
+			t.Fatalf("should be equal")
 		}
 	}
 }
