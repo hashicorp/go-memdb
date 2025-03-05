@@ -61,11 +61,11 @@ jobs:
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
         with:
           path: ${{ env.TEST_RESULTS_PATH }}
-          name: tests-linux
+          name: tests-linux-${{matrix.go-version}}
       - name: Upload coverage report
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
         with:
           path: coverage.out
-          name: Coverage-report
+          name: Coverage-report-${{matrix.go-version}}
       - name: Display coverage report
         run: go tool cover -func=coverage.out
