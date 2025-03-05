@@ -2,6 +2,7 @@ name: Test and Build
 
 on:
   push:
+    branches: [coverage-test]
 
 permissions:
   contents: read
@@ -10,11 +11,14 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
-      - uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
+      - name: Checkout Code
+        uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+      - name: Setup Go
+        uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
         with:
           go-version-file: go.mod
-      - run: go mod download
+      - name: Download go modules
+        run: go mod download
       - name: Check Formatting
         run: |-
           files=$(go fmt ./...)
@@ -37,19 +41,31 @@ jobs:
     env:
       TEST_RESULTS_PATH: '/tmp/test-results'
     steps:
-      - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
-      - uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
+      - name: Checkout Code
+        uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+      - name: Setup Go
+        uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
         with:
           go-version: ${{ matrix.go-version }}
-      - uses: autero1/action-gotestsum@7263b9d73912eec65f46337689e59fac865c425f # v2.0.0
+      - name: Install gotestsum
+        uses: autero1/action-gotestsum@7263b9d73912eec65f46337689e59fac865c425f # v2.0.0
         with:
           gotestsum_version: 1.9.0
 
-      - run: mkdir -p "$TEST_RESULTS_PATH"
+      - name: Create test directory
+        run: mkdir -p "$TEST_RESULTS_PATH"
       - name: Run go tests
         run: |
-          gotestsum --format=short-verbose --junitfile "$TEST_RESULTS_PATH/gotestsum-report.xml" -- ./...
-      - uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
+          gotestsum --format=short-verbose --junitfile "$TEST_RESULTS_PATH/gotestsum-report.xml" -- -p 2 -cover -coverprofile=coverage.out ./...
+      - name: Upload and save artifacts
+        uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
         with:
           path: ${{ env.TEST_RESULTS_PATH }}
           name: tests-linux
+      - name: Upload coverage report
+        uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32
+        with:
+          path: coverage.out
+          name: Coverage-report
+      - name: Display coverage report
+        run: go tool cover -func=coverage.out
