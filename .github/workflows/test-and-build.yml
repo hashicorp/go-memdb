@@ -2,7 +2,6 @@ name: Test and Build
 
 on:
   push:
-    branches: [coverage-test]
 
 permissions:
   contents: read
