@@ -1,0 +1,5 @@
+linters:
+  disable-all: true
+  enable:
+    - errcheck
+output_format: colored-line-number
