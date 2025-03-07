@@ -52,7 +52,9 @@ func TestMemDB_Snapshot(t *testing.T) {
 	// Add an object
 	obj := testObj()
 	txn := db.Txn(true)
-	txn.Insert("main", obj)
+	if err := txn.Insert("main", obj); err != nil {
+		t.Fatalf("err: %v", err)
+	}
 	txn.Commit()
 
 	// Clone the db
@@ -60,7 +62,9 @@ func TestMemDB_Snapshot(t *testing.T) {
 
 	// Remove the object
 	txn = db.Txn(true)
-	txn.Delete("main", obj)
+	if err := txn.Delete("main", obj); err != nil {
+		t.Fatalf("err: %v", err)
+	}
 	txn.Commit()
 
 	// Object should exist in second snapshot but not first
