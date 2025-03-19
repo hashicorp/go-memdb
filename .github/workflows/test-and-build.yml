@@ -1,7 +1,8 @@
 name: Test and Build
 
 on:
-  push:
+  - push
+  - pull_request
 
 permissions:
   contents: read
@@ -28,13 +29,15 @@ jobs:
           fi
       - name: Vet code
         run: go vet ./...
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@08e2f20817b15149a52b5b3ebe7de50aff2ba8c5
 
   go-test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         go-version:
-          - '1.13' # oldest supported; named in go.mod
+          - '1.23' # named in go.mod
           - 'oldstable'
           - 'stable'
     env:
