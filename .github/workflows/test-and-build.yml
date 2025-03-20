@@ -1,8 +1,9 @@
 name: Test and Build
 
 on:
-  - push
-  - pull_request
+  push:
+    branches:
+      - build
 
 permissions:
   contents: read
@@ -71,3 +72,5 @@ jobs:
           name: Coverage-report-${{matrix.go-version}}
       - name: Display coverage report
         run: go tool cover -func=coverage.out
+      - name: Build go
+        run: go build ./...
