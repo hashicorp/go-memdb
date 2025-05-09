@@ -5,10 +5,6 @@
 <!-- Describe how the changes have been tested. Provide test instructions or details. -->
 
 ## External links
-<!-- Any related external links can be added here -->
+<!-- Any related external links can be added here. Please include the Jira number if it applies to the changes. -->
 
 - [JIRA](https://hashicorp.atlassian.net/browse/xxxx)
-- [RFC](https://docs.google.com/document/d/xxxx)
-- [PRD](https://docs.google.com/document/d/xxxx)
-- [Related PR](https://github.com/hashicorp/atlas/pull/xxxx)
-- [Documentation](https://github.com/hashicorp/terraform-docs-common/pull/xxxx)
