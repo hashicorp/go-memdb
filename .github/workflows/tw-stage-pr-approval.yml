@@ -11,10 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
-      contents: read
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
       
-      - name: two-stage-pr-review
+      - name: Two stage PR approval
         uses: hashicorp/two-stage-pr-approval@chore/refactor-to-make-reusable-action
