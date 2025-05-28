@@ -1,6 +1,5 @@
 name: Two-Stage PR Review Process
 # We have been instating this process to ensure that any PRs raised by IP compliance team members follows a comprehensive internal team review first and then become open for wider review for shared/core libraries that we co-own.
-# Memo for this change : https://go.hashi.co/memo/eng-001
 
 on:
   pull_request:
