@@ -19,6 +19,9 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    # Define outputs for this job
+    outputs:
+      new_release_version: ${{ steps.get_new_version.outputs.new_release_version }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -86,7 +89,6 @@ jobs:
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NEW_RELEASE_TAG: ${{ steps.get_new_version.outputs.new_release_version }}
         with:
           tag_name: ${{ steps.get_new_version.outputs.new_release_version }}
           release_name: Release ${{ steps.get_new_version.outputs.new_release_version }}
@@ -106,6 +108,7 @@ jobs:
 
       - name: Delete Git Tag on Failure
         run: |
+          # Access the output from the 'release' job using needs.release.outputs
           TAG_TO_DELETE="${{ needs.release.outputs.new_release_version }}"
           if [ -n "$TAG_TO_DELETE" ]; then
             echo "Deleting tag: $TAG_TO_DELETE due to workflow failure/cancellation."
@@ -113,7 +116,7 @@ jobs:
             git config user.email "actions@github.com"
             git push origin --delete "$TAG_TO_DELETE" || true # Use || true to prevent the step from failing if tag doesn't exist
           else
-            echo "No tag to delete or new_release_version not set."
+            echo "No tag to delete or new_release_version not set from previous job."
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
