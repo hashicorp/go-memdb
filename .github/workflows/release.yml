@@ -1,0 +1,100 @@
+name: Manual Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Type of release (major, minor, patch, or specific)'
+        required: true
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+          - specific
+      specific_version:
+        description: 'Specify version if release type is "specific" (e.g., 1.0.0)'
+        required: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Get latest release version and calculate new version
+        id: get_new_version
+        run: |
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Latest tag: $latest_tag"
+
+          # Remove 'v' prefix for version comparison
+          current_version=${latest_tag#v}
+          IFS='.' read -r -a version_parts <<< "$current_version"
+          major=${version_parts[0]}
+          minor=${version_parts[1]}
+          patch=${version_parts[2]}
+
+          new_version=""
+          release_type="${{ github.event.inputs.release_type }}"
+
+          if [ "$release_type" == "specific" ]; then
+            if [ -z "${{ github.event.inputs.specific_version }}" ]; then
+              echo "Error: specific_version is required when release_type is specific."
+              exit 1
+            fi
+            new_version="${{ github.event.inputs.specific_version }}"
+          elif [ "$release_type" == "major" ]; then
+            new_version="$((major + 1)).0.0"
+          elif [ "$release_type" == "minor" ]; then
+            new_version="${major}.$((minor + 1)).0"
+          elif [ "$release_type" == "patch" ]; then
+            new_version="${major}.${minor}.$((patch + 1))"
+          else
+            echo "Error: Invalid release_type provided."
+            exit 1
+          fi
+
+          echo "New calculated version: v$new_version"
+          echo "new_release_version=v$new_version" >> "$GITHUB_OUTPUT"
+
+      - name: Create Git Tag
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git tag ${{ steps.get_new_version.outputs.new_release_version }}
+          git push origin ${{ steps.get_new_version.outputs.new_release_version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: GitHub Release (with zip archives only)
+        uses: goreleaser/goreleaser-action@7ec5c2b0c6cdda6e8bbb49444bc797dd33d74dd8 # v5.0.0
+        with:
+          version: latest
+          args: release --snapshot --rm-dist --skip-validate --skip-sign --skip-publish --timeout "30m"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.get_new_version.outputs.new_release_version }}
+          release_name: Release ${{ steps.get_new_version.outputs.new_release_version }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            ./dist/*.zip
+            ./dist/*.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
