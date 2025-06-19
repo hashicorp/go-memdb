@@ -59,8 +59,11 @@ jobs:
 
           echo "New calculated version: v$new_version"
           echo "new_release_version=v$new_version" >> "$GITHUB_OUTPUT"
+          # Also output the latest_tag for the changelog builder
+          echo "latest_existing_tag=$latest_tag" >> "$GITHUB_OUTPUT"
 
       - name: Create Git Tag
+        id: create_git_tag
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
@@ -69,13 +72,48 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Generate Changelog
+        id: generate_changelog
+        uses: mikepenz/release-changelog-builder-action@v5
+        with:
+          fromTag: ${{ steps.get_new_version.outputs.latest_existing_tag == 'v0.0.0' && '' || steps.get_new_version.outputs.latest_existing_tag }}
+          toTag: ${{ steps.get_new_version.outputs.new_release_version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Create GitHub Release
         id: create_release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEW_RELEASE_TAG: ${{ steps.get_new_version.outputs.new_release_version }}
         with:
           tag_name: ${{ steps.get_new_version.outputs.new_release_version }}
           release_name: Release ${{ steps.get_new_version.outputs.new_release_version }}
+          body: ${{ steps.generate_changelog.outputs.changelog }}
           draft: false
           prerelease: false
+
+  cleanup_on_failure:
+    runs-on: ubuntu-latest
+    needs: release # This job depends on the 'release' job
+    if: ${{ always() && (needs.release.result == 'failure' || needs.release.result == 'cancelled') }} # Run if release job failed or was cancelled
+    steps:
+      - name: Checkout code (for tag deletion)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Delete Git Tag on Failure
+        run: |
+          TAG_TO_DELETE="${{ needs.release.outputs.new_release_version }}"
+          if [ -n "$TAG_TO_DELETE" ]; then
+            echo "Deleting tag: $TAG_TO_DELETE due to workflow failure/cancellation."
+            git config user.name "GitHub Actions"
+            git config user.email "actions@github.com"
+            git push origin --delete "$TAG_TO_DELETE" || true # Use || true to prevent the step from failing if tag doesn't exist
+          else
+            echo "No tag to delete or new_release_version not set."
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
