@@ -1,6 +1,6 @@
 module github.com/hashicorp/go-memdb
 
-go 1.24
+go 1.23
 
 require github.com/hashicorp/go-immutable-radix v1.3.1
 
