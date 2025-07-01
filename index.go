@@ -847,11 +847,12 @@ forloop:
 	// field specified as "abc", it is valid to call FromArgs with just "abc".
 	var walkVals func([]byte, int)
 	walkVals = func(currPrefix []byte, depth int) {
+
 		if depth >= len(builder) {
 			return
 		}
 
-		if depth == len(builder)-1 {
+		if depth == len(c.Indexes)-1 {
 			// These are the "leaves", so append directly
 			for _, v := range builder[depth] {
 				outcome := make([]byte, len(currPrefix))
@@ -860,10 +861,12 @@ forloop:
 			}
 			return
 		}
+
 		for _, v := range builder[depth] {
 			nextPrefix := append(currPrefix, v...)
-			if c.AllowMissing {
+			if c.AllowMissing && depth == len(builder)-1 {
 				out = append(out, nextPrefix)
+				return
 			}
 			walkVals(nextPrefix, depth+1)
 		}
