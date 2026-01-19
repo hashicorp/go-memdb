@@ -1484,3 +1484,253 @@ func BenchmarkCompoundMultiIndex_FromObject(b *testing.B) {
 		}
 	}
 }
+
+func TestCompoundMultiIndex_FromObject_AllowMissing(t *testing.T) {
+	cases := []struct {
+		name         string
+		obj          *TestObject
+		indexes      []Indexer
+		allowMissing bool
+		wantOk       bool
+		wantVals     []string
+	}{
+		{
+			name: "first field missing returns empty vals",
+			obj: &TestObject{
+				ID:  "obj1",
+				Foo: "Foo1",
+				Baz: "Baz1",
+			},
+			indexes: []Indexer{
+				&StringFieldIndex{Field: "Empty"},
+				&StringFieldIndex{Field: "Foo"},
+				&StringFieldIndex{Field: "Baz"},
+			},
+			allowMissing: true,
+			wantOk:       true,
+			wantVals:     []string{},
+		},
+		{
+			name: "middle field missing produces partial key",
+			obj: &TestObject{
+				ID:  "obj1",
+				Foo: "Foo1",
+				Baz: "Baz1",
+			},
+			indexes: []Indexer{
+				&StringFieldIndex{Field: "Foo"},
+				&StringFieldIndex{Field: "Empty"},
+				&StringFieldIndex{Field: "Baz"},
+			},
+			allowMissing: true,
+			wantOk:       true,
+			wantVals:     []string{"Foo1\x00"},
+		},
+		{
+			name: "last field missing produces partial key",
+			obj: &TestObject{
+				ID:  "obj1",
+				Foo: "Foo1",
+				Baz: "Baz1",
+			},
+			indexes: []Indexer{
+				&StringFieldIndex{Field: "Foo"},
+				&StringFieldIndex{Field: "Baz"},
+				&StringFieldIndex{Field: "Empty"},
+			},
+			allowMissing: true,
+			wantOk:       true,
+			wantVals:     []string{"Foo1\x00Baz1\x00"},
+		},
+		{
+			name: "MultiIndexer before missing field produces no duplicates",
+			obj: &TestObject{
+				ID:  "obj1",
+				Qux: []string{"A", "B"},
+			},
+			indexes: []Indexer{
+				&StringSliceFieldIndex{Field: "Qux"},
+				&StringFieldIndex{Field: "Empty"},
+			},
+			allowMissing: true,
+			wantOk:       true,
+			wantVals:     []string{"A\x00", "B\x00"},
+		},
+		{
+			name: "AllowMissing false returns not ok for missing field",
+			obj: &TestObject{
+				ID:  "obj1",
+				Foo: "Foo1",
+				Baz: "Baz1",
+			},
+			indexes: []Indexer{
+				&StringFieldIndex{Field: "Foo"},
+				&StringFieldIndex{Field: "Empty"},
+				&StringFieldIndex{Field: "Baz"},
+			},
+			allowMissing: false,
+			wantOk:       false,
+			wantVals:     nil,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			indexer := &CompoundMultiIndex{
+				Indexes:      tc.indexes,
+				AllowMissing: tc.allowMissing,
+			}
+
+			ok, vals, err := indexer.FromObject(tc.obj)
+			if err != nil {
+				t.Fatalf("err: %v", err)
+			}
+			if ok != tc.wantOk {
+				t.Fatalf("ok = %v, want %v", ok, tc.wantOk)
+			}
+
+			if tc.wantVals == nil {
+				if vals != nil {
+					t.Fatalf("vals should be nil, got %v", vals)
+				}
+				return
+			}
+
+			got := valsToStrings(vals)
+			if !reflect.DeepEqual(got, tc.wantVals) {
+				t.Fatalf("\ngot:  %v\nwant: %v", got, tc.wantVals)
+			}
+		})
+	}
+}
+
+func TestCompoundMultiIndex_FromArgs(t *testing.T) {
+	cases := []struct {
+		name         string
+		allowMissing bool
+		args         []any
+		wantErr      bool
+		wantValue    string
+	}{
+		{
+			name:         "AllowMissing=false no args returns error",
+			allowMissing: false,
+			args:         []any{},
+			wantErr:      true,
+		},
+		{
+			name:         "AllowMissing=false partial args returns error",
+			allowMissing: false,
+			args:         []any{"foo", "bar"},
+			wantErr:      true,
+		},
+		{
+			name:         "AllowMissing=false too many args returns error",
+			allowMissing: false,
+			args:         []any{"foo", "bar", "baz", "extra"},
+			wantErr:      true,
+		},
+		{
+			name:         "AllowMissing=false wrong type returns error",
+			allowMissing: false,
+			args:         []any{42, "bar", "baz"},
+			wantErr:      true,
+		},
+		{
+			name:         "AllowMissing=false nil arg returns error",
+			allowMissing: false,
+			args:         []any{"foo", nil, "baz"},
+			wantErr:      true,
+		},
+		{
+			name:         "AllowMissing=false correct args returns compound key",
+			allowMissing: false,
+			args:         []any{"foo", "bar", "baz"},
+			wantErr:      false,
+			wantValue:    "foo\x00bar\x00baz\x00",
+		},
+		{
+			name:         "AllowMissing=false empty string arg succeeds",
+			allowMissing: false,
+			args:         []any{"", "bar", "baz"},
+			wantErr:      false,
+			wantValue:    "\x00bar\x00baz\x00",
+		},
+		{
+			name:         "AllowMissing=true no args returns empty key",
+			allowMissing: true,
+			args:         []any{},
+			wantErr:      false,
+			wantValue:    "",
+		},
+		{
+			name:         "AllowMissing=true one of three args succeeds",
+			allowMissing: true,
+			args:         []any{"foo"},
+			wantErr:      false,
+			wantValue:    "foo\x00",
+		},
+		{
+			name:         "AllowMissing=true two of three args succeeds",
+			allowMissing: true,
+			args:         []any{"foo", "bar"},
+			wantErr:      false,
+			wantValue:    "foo\x00bar\x00",
+		},
+		{
+			name:         "AllowMissing=true full args succeeds",
+			allowMissing: true,
+			args:         []any{"foo", "bar", "baz"},
+			wantErr:      false,
+			wantValue:    "foo\x00bar\x00baz\x00",
+		},
+		{
+			name:         "AllowMissing=true too many args returns error",
+			allowMissing: true,
+			args:         []any{"foo", "bar", "baz", "extra"},
+			wantErr:      true,
+		},
+		{
+			name:         "AllowMissing=true empty string arg succeeds",
+			allowMissing: true,
+			args:         []any{"foo", "", "baz"},
+			wantErr:      false,
+			wantValue:    "foo\x00\x00baz\x00",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			indexer := &CompoundMultiIndex{
+				Indexes: []Indexer{
+					&StringFieldIndex{Field: "Foo"},
+					&StringFieldIndex{Field: "Bar"},
+					&StringFieldIndex{Field: "Baz"},
+				},
+				AllowMissing: tc.allowMissing,
+			}
+
+			val, err := indexer.FromArgs(tc.args...)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("err: %v", err)
+			}
+			if got := string(val); got != tc.wantValue {
+				t.Fatalf("got %q, want %q", got, tc.wantValue)
+			}
+		})
+	}
+}
+
+func valsToStrings(vals [][]byte) []string {
+	result := make([]string, len(vals))
+	for i, v := range vals {
+		result[i] = string(v)
+	}
+	return result
+}

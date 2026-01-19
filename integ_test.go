@@ -282,6 +282,34 @@ func TestComplexDB(t *testing.T) {
 	if place.Tags[1] != "Earth" {
 		t.Fatalf("bad place: %v", place)
 	}
+
+	iter, err := txn.Get("people", "last_first", "Dadgar")
+	noErr(t, err)
+	peopleByID := make(map[string]*TestPerson)
+	for obj := iter.Next(); obj != nil; obj = iter.Next() {
+		p := obj.(*TestPerson)
+		if _, exists := peopleByID[p.ID]; exists {
+			t.Fatalf("duplicate result for person ID %s", p.ID)
+		}
+		peopleByID[p.ID] = p
+	}
+	if len(peopleByID) != 2 {
+		t.Fatalf("expected 2 results with Last=Dadgar, got %d", len(peopleByID))
+	}
+
+	iter, err = txn.Get("places", "name_tags", "Maui")
+	noErr(t, err)
+	var mauiCount int
+	for obj := iter.Next(); obj != nil; obj = iter.Next() {
+		p := obj.(*TestPlace)
+		if p.Name != "Maui" {
+			t.Fatalf("expected Maui, got %s", p.Name)
+		}
+		mauiCount++
+	}
+	if mauiCount != 1 {
+		t.Fatalf("expected 1 Maui place with missing tags, got %d", mauiCount)
+	}
 }
 
 func TestWatchUpdate(t *testing.T) {
@@ -472,6 +500,17 @@ func testComplexSchema() *DBSchema {
 						Name:    "sibling",
 						Unique:  false,
 						Indexer: &FieldSetIndex{Field: "Sibling"},
+					},
+					"last_first": &IndexSchema{
+						Name:         "last_first",
+						AllowMissing: true,
+						Indexer: &CompoundMultiIndex{
+							AllowMissing: true,
+							Indexes: []Indexer{
+								&StringFieldIndex{Field: "Last"},
+								&StringFieldIndex{Field: "First"},
+							},
+						},
 					},
 				},
 			},

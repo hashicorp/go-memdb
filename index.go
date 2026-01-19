@@ -38,7 +38,7 @@ type SingleIndexer interface {
 // pointing to the same object.
 //
 // For example, an index that extracts the first and last name of a person
-// and allows lookup based on eitherd would be a MultiIndexer. The FromObject
+// and allows lookup based on either would be a MultiIndexer. The FromObject
 // of this example would split the first and last name and return both as
 // values.
 type MultiIndexer interface {
@@ -837,14 +837,20 @@ forloop:
 	}
 
 	// Start with something higher to avoid resizing if possible
-	out := make([][]byte, 0, len(c.Indexes)^3)
+	indexCount := len(c.Indexes)
+	out := make([][]byte, 0, indexCount*indexCount*indexCount)
 
-	// We are walking through the builder slice essentially in a depth-first fashion,
-	// building the prefix and leaves as we go. If AllowMissing is false, we only insert
-	// these full paths to leaves. Otherwise, we also insert each prefix along the way.
-	// This allows for lookup in FromArgs when AllowMissing is true that does not contain
-	// the full set of arguments. e.g. for {Foo, Bar} where an object has only the Foo
-	// field specified as "abc", it is valid to call FromArgs with just "abc".
+	// We walk through the builder slice in a depth-first fashion, constructing
+	// full compound index keys at the leaves. Only complete paths (leaves) are
+	// stored in the index. When AllowMissing is true and a sub-indexer returns
+	// no value, the builder will be shorter than the number of indexes, and
+	// the last collected value becomes the leaf. This allows partial compound
+	// keys to be stored for objects with missing fields.
+	//
+	// Partial key lookups (with fewer args than sub-indexes) work via the radix
+	// tree's native prefix matching (SeekPrefixWatch), not via explicit prefix
+	// storage. e.g. for {Foo, Bar} where an object has both fields, querying
+	// with just Foo will match via prefix scan of the full "FooBar" key.
 	var walkVals func([]byte, int)
 	walkVals = func(currPrefix []byte, depth int) {
 		if depth >= len(builder) {
@@ -862,9 +868,6 @@ forloop:
 		}
 		for _, v := range builder[depth] {
 			nextPrefix := append(currPrefix, v...)
-			if c.AllowMissing {
-				out = append(out, nextPrefix)
-			}
 			walkVals(nextPrefix, depth+1)
 		}
 	}
