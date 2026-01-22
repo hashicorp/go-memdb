@@ -1485,6 +1485,8 @@ func BenchmarkCompoundMultiIndex_FromObject(b *testing.B) {
 	}
 }
 
+// TestCompoundMultiIndex_FromObject_AllowMissing verifies that CompoundMultiIndex.FromObject
+// handles missing fields correctly based on the AllowMissing setting.
 func TestCompoundMultiIndex_FromObject_AllowMissing(t *testing.T) {
 	cases := []struct {
 		name         string
@@ -1604,6 +1606,8 @@ func TestCompoundMultiIndex_FromObject_AllowMissing(t *testing.T) {
 	}
 }
 
+// TestCompoundMultiIndex_FromArgs tests CompoundMultiIndex.FromArgs with varying
+// argument counts and validates prefix query support when AllowMissing is enabled.
 func TestCompoundMultiIndex_FromArgs(t *testing.T) {
 	cases := []struct {
 		name         string
@@ -1727,6 +1731,8 @@ func TestCompoundMultiIndex_FromArgs(t *testing.T) {
 	}
 }
 
+// valsToStrings converts a slice of byte slices to a slice of strings for
+// easier debugging and comparison in test assertions.
 func valsToStrings(vals [][]byte) []string {
 	result := make([]string, len(vals))
 	for i, v := range vals {
