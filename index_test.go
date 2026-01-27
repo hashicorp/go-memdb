@@ -1485,6 +1485,8 @@ func BenchmarkCompoundMultiIndex_FromObject(b *testing.B) {
 	}
 }
 
+// TestIndexCombinationCount verifies that indexCombinationCount correctly
+// computes the product of index value slice lengths.
 func TestIndexCombinationCount(t *testing.T) {
 	cases := []struct {
 		name     string
