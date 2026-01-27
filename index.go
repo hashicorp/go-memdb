@@ -837,8 +837,7 @@ forloop:
 	}
 
 	// Start with something higher to avoid resizing if possible
-	indexCount := len(c.Indexes)
-	out := make([][]byte, 0, indexCount*indexCount*indexCount)
+	out := make([][]byte, 0, len(c.Indexes)^3)
 
 	// We walk through the builder slice in a depth-first fashion, constructing
 	// full compound index keys at the leaves. Only complete paths (leaves) are
