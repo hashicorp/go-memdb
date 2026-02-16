@@ -1,4 +1,4 @@
-# go-memdb [![CircleCI](https://circleci.com/gh/hashicorp/go-memdb/tree/master.svg?style=svg)](https://circleci.com/gh/hashicorp/go-memdb/tree/master)
+# go-memdb
 
 Provides the `memdb` package that implements a simple in-memory database
 built on immutable radix trees. The database provides Atomicity, Consistency
@@ -143,4 +143,3 @@ for obj := it.Next(); obj != nil; obj = it.Next() {
 //   Joe is aged 30
 //   Lucy is aged 35
 ```
-
