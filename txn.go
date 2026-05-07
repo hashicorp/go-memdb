@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"unsafe"
 
-	iradix "github.com/hashicorp/go-immutable-radix"
+	iradix "github.com/hashicorp/go-immutable-radix/v2"
 )
 
 const (
@@ -33,14 +33,14 @@ type tableIndex struct {
 type Txn struct {
 	db      *MemDB
 	write   bool
-	rootTxn *iradix.Txn
+	rootTxn *iradix.Txn[*iradix.Tree[any]]
 	after   []func()
 
 	// changes is used to track the changes performed during the transaction. If
 	// it is nil at transaction start then changes are not tracked.
 	changes Changes
 
-	modified map[tableIndex]*iradix.Txn
+	modified map[tableIndex]*iradix.Txn[any]
 }
 
 // TrackChanges enables change tracking for the transaction. If called at any
@@ -58,7 +58,7 @@ func (txn *Txn) TrackChanges() {
 // readableIndex returns a transaction usable for reading the given index in a
 // table. If the transaction is a write transaction with modifications, a clone of the
 // modified index will be returned.
-func (txn *Txn) readableIndex(table, index string) *iradix.Txn {
+func (txn *Txn) readableIndex(table, index string) *iradix.Txn[any] {
 	// Look for existing transaction
 	if txn.write && txn.modified != nil {
 		key := tableIndex{table, index}
@@ -71,15 +71,15 @@ func (txn *Txn) readableIndex(table, index string) *iradix.Txn {
 	// Create a read transaction
 	path := indexPath(table, index)
 	raw, _ := txn.rootTxn.Get(path)
-	indexTxn := raw.(*iradix.Tree).Txn()
+	indexTxn := raw.Txn()
 	return indexTxn
 }
 
 // writableIndex returns a transaction usable for modifying the
 // given index in a table.
-func (txn *Txn) writableIndex(table, index string) *iradix.Txn {
+func (txn *Txn) writableIndex(table, index string) *iradix.Txn[any] {
 	if txn.modified == nil {
-		txn.modified = make(map[tableIndex]*iradix.Txn)
+		txn.modified = make(map[tableIndex]*iradix.Txn[any])
 	}
 
 	// Look for existing transaction
@@ -92,7 +92,7 @@ func (txn *Txn) writableIndex(table, index string) *iradix.Txn {
 	// Start a new transaction
 	path := indexPath(table, index)
 	raw, _ := txn.rootTxn.Get(path)
-	indexTxn := raw.(*iradix.Tree).Txn()
+	indexTxn := raw.Txn()
 
 	// If we are the primary DB, enable mutation tracking. Snapshots should
 	// not notify, otherwise we will trigger watches on the primary DB when
@@ -923,7 +923,7 @@ func (txn *Txn) Changes() Changes {
 	return cs
 }
 
-func (txn *Txn) getIndexIterator(table, index string, args ...interface{}) (*iradix.Iterator, []byte, error) {
+func (txn *Txn) getIndexIterator(table, index string, args ...interface{}) (*iradix.Iterator[any], []byte, error) {
 	// Get the index value to scan
 	indexSchema, val, err := txn.getIndexValue(table, index, args...)
 	if err != nil {
@@ -939,7 +939,7 @@ func (txn *Txn) getIndexIterator(table, index string, args ...interface{}) (*ira
 	return indexIter, val, nil
 }
 
-func (txn *Txn) getIndexIteratorReverse(table, index string, args ...interface{}) (*iradix.ReverseIterator, []byte, error) {
+func (txn *Txn) getIndexIteratorReverse(table, index string, args ...interface{}) (*iradix.ReverseIterator[any], []byte, error) {
 	// Get the index value to scan
 	indexSchema, val, err := txn.getIndexValue(table, index, args...)
 	if err != nil {
@@ -967,7 +967,7 @@ func (txn *Txn) Defer(fn func()) {
 // This is much more efficient than a sliceIterator as we are not
 // materializing the entire view.
 type radixIterator struct {
-	iter    *iradix.Iterator
+	iter    *iradix.Iterator[any]
 	watchCh <-chan struct{}
 }
 
@@ -984,7 +984,7 @@ func (r *radixIterator) Next() interface{} {
 }
 
 type radixReverseIterator struct {
-	iter    *iradix.ReverseIterator
+	iter    *iradix.ReverseIterator[any]
 	watchCh <-chan struct{}
 }
 
