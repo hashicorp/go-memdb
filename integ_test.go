@@ -212,6 +212,17 @@ func TestComplexDB(t *testing.T) {
 		t.Fatalf("wrong person!")
 	}
 
+	raw, err = txn.First("people", "sibling_first", "Alex")
+	noErr(t, err)
+	if raw == nil {
+		t.Fatalf("should get person")
+	}
+
+	person = raw.(*TestPerson)
+	if person.First != "Armon" {
+		t.Fatalf("wrong person!")
+	}
+
 	// Where in the world is mitchell hashimoto?
 	raw, err = txn.First("people", "name_prefix", "Mitchell")
 	noErr(t, err)
@@ -472,6 +483,11 @@ func testComplexSchema() *DBSchema {
 						Name:    "sibling",
 						Unique:  false,
 						Indexer: &FieldSetIndex{Field: "Sibling"},
+					},
+					"sibling_first": &IndexSchema{
+						Name:    "sibling_first",
+						Unique:  false,
+						Indexer: &NestedStringFieldIndex{Field: "Sibling.First"},
 					},
 				},
 			},
