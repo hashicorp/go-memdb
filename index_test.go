@@ -1227,6 +1227,84 @@ func TestConditionalIndex_FromArgs(t *testing.T) {
 	}
 }
 
+type TestObjectWithTime struct {
+	Time time.Time
+}
+
+func TestTimeFieldIndex_FromObject(t *testing.T) {
+	obj := TestObjectWithTime{}
+	indexer := TimeFieldIndex{Field: "Time"}
+	obj.Time = time.Unix(0, 0)
+	ok, val, err := indexer.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+
+	etime := make([]byte, 12)
+	binary.BigEndian.PutUint64(etime, 1<<63)
+	binary.BigEndian.PutUint32(etime[8:], 1<<31)
+	if !bytes.Equal(val, etime) {
+		t.Fatalf("bad: %#v %#v", val, etime)
+	}
+
+	// Change the object so it should return with 1 nano.
+	obj.Time = time.Unix(0, 1)
+	ok, val, err = indexer.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+
+	binary.BigEndian.PutUint64(etime, 1<<63)
+	binary.BigEndian.PutUint32(etime[8:], 1<<31+1)
+	if !bytes.Equal(val, etime) {
+		t.Fatalf("bad: %#v %#v", val, etime)
+	}
+
+	// Pass an invalid type.
+	ok, val, err = indexer.FromObject(t)
+	if err == nil {
+		t.Fatalf("expected an error when passing invalid type")
+	}
+}
+
+func TestTimeFieldIndex_FromArgs(t *testing.T) {
+	indexer := TimeFieldIndex{"Foo"}
+	_, err := indexer.FromArgs()
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	_, err = indexer.FromArgs(int(1), int(2))
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	_, err = indexer.FromArgs("foo")
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	obj := TestObjectWithTime{}
+	obj.Time = time.Unix(0, 0)
+	etime := make([]byte, 12)
+	binary.BigEndian.PutUint64(etime, 1<<63)
+	binary.BigEndian.PutUint32(etime[8:], 1<<31)
+
+	val, err := indexer.FromArgs(obj.Time)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if !bytes.Equal(val, etime) {
+		t.Fatalf("bad: %#v %#v", val, etime)
+	}
+}
+
 func TestCompoundIndex_FromObject(t *testing.T) {
 	obj := testObj()
 	indexer := &CompoundIndex{
