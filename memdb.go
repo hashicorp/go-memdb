@@ -6,6 +6,7 @@
 package memdb
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"unsafe"
@@ -35,6 +36,11 @@ type MemDB struct {
 	writer sync.Mutex
 }
 
+type TableData struct {
+	Table   string
+	Objects []interface{}
+}
+
 // NewMemDB creates a new MemDB with the given schema.
 func NewMemDB(schema *DBSchema) (*MemDB, error) {
 	// Validate the schema
@@ -52,6 +58,34 @@ func NewMemDB(schema *DBSchema) (*MemDB, error) {
 		return nil, err
 	}
 
+	return db, nil
+}
+
+// NewMemDBWithData creates a new MemDB with the given schema and initializes it with data.
+func NewMemDBWithData(schema *DBSchema, data []*TableData, workerCount int) (*MemDB, error) {
+	// Validate the schema
+	if err := schema.Validate(); err != nil {
+		return nil, err
+	}
+
+	// Validate if data has all unique table names
+	tables := make(map[string]struct{})
+	for _, tableData := range data {
+		if _, ok := tables[tableData.Table]; ok {
+			return nil, fmt.Errorf("table %q is duplicated in data", tableData.Table)
+		}
+		tables[tableData.Table] = struct{}{}
+	}
+
+	// Create the MemDB
+	db := &MemDB{
+		schema:  schema,
+		root:    unsafe.Pointer(iradix.New()),
+		primary: true,
+	}
+	if err := db.initializeWithObjects(data, workerCount); err != nil {
+		return nil, err
+	}
 	return db, nil
 }
 
