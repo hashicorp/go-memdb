@@ -836,8 +836,8 @@ forloop:
 		}
 	}
 
-	// Start with something higher to avoid resizing if possible
-	out := make([][]byte, 0, len(c.Indexes)^3)
+	// Allocate output slice with exact capacity for all index combinations.
+	out := make([][]byte, 0, indexCombinationCount(builder))
 
 	// We are walking through the builder slice essentially in a depth-first fashion,
 	// building the prefix and leaves as we go. If AllowMissing is false, we only insert
@@ -931,4 +931,18 @@ func (c *CompoundMultiIndex) FromArgs(args ...interface{}) ([]byte, error) {
 		out = append(out, val...)
 	}
 	return out, nil
+}
+
+// indexCombinationCount returns the total number of index key combinations
+// that will be generated from the builder slice. This is the product of
+// the lengths of each entry in the builder.
+func indexCombinationCount(builder [][][]byte) int {
+	if len(builder) == 0 {
+		return 0
+	}
+	count := 1
+	for _, vals := range builder {
+		count *= len(vals)
+	}
+	return count
 }
