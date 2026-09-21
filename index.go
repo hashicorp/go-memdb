@@ -861,7 +861,11 @@ forloop:
 			return
 		}
 		for _, v := range builder[depth] {
-			nextPrefix := append(currPrefix, v...)
+			// Copy the prefix: append into currPrefix's spare capacity would
+			// alias earlier AllowMissing entries stored in out (see #194).
+			nextPrefix := make([]byte, len(currPrefix), len(currPrefix)+len(v))
+			copy(nextPrefix, currPrefix)
+			nextPrefix = append(nextPrefix, v...)
 			if c.AllowMissing {
 				out = append(out, nextPrefix)
 			}

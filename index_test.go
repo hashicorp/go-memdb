@@ -1454,6 +1454,52 @@ func indexerFromFieldNameList(keys []string) *CompoundMultiIndex {
 	return indexer
 }
 
+func TestCompoundMultiIndex_FromObject_AllowMissingPrefixAlias(t *testing.T) {
+	// Regression for #194: with AllowMissing, intermediate prefixes were
+	// appended into a shared backing array, so sibling values overwrote
+	// earlier stored prefixes.
+	obj := &TestObject{
+		Foo:      "a",
+		Qux:      []string{"b1", "b2", "b3"},
+		QuxEmpty: []string{"c1", "c2"},
+	}
+	indexer := &CompoundMultiIndex{
+		AllowMissing: true,
+		Indexes: []Indexer{
+			&StringFieldIndex{Field: "Foo"},
+			&StringSliceFieldIndex{Field: "Qux"},
+			&StringSliceFieldIndex{Field: "QuxEmpty"},
+		},
+	}
+
+	ok, vals, err := indexer.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+	want := []string{
+		"a\x00",
+		"a\x00b1\x00",
+		"a\x00b1\x00c1\x00",
+		"a\x00b1\x00c2\x00",
+		"a\x00b2\x00",
+		"a\x00b2\x00c1\x00",
+		"a\x00b2\x00c2\x00",
+		"a\x00b3\x00",
+		"a\x00b3\x00c1\x00",
+		"a\x00b3\x00c2\x00",
+	}
+	got := make([]string, len(vals))
+	for i, v := range vals {
+		got[i] = string(v)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("\ngot:  %#v\nwant: %#v\n", got, want)
+	}
+}
+
 func BenchmarkCompoundMultiIndex_FromObject(b *testing.B) {
 	obj := &TestObject{
 		ID:       "obj1-uuid",
