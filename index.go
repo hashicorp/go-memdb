@@ -861,7 +861,10 @@ forloop:
 			return
 		}
 		for _, v := range builder[depth] {
-			nextPrefix := append(currPrefix, v...)
+			// Copy the prefix so sibling appends do not overwrite
+			// earlier AllowMissing partial keys sharing the buffer.
+			nextPrefix := make([]byte, 0, len(currPrefix)+len(v))
+			nextPrefix = append(append(nextPrefix, currPrefix...), v...)
 			if c.AllowMissing {
 				out = append(out, nextPrefix)
 			}

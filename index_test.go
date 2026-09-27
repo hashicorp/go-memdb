@@ -1484,3 +1484,57 @@ func BenchmarkCompoundMultiIndex_FromObject(b *testing.B) {
 		}
 	}
 }
+
+
+func TestCompoundMultiIndex_AllowMissingPartialKeys(t *testing.T) {
+	type row struct {
+		A string
+		B []string
+		C []string
+	}
+	obj := &row{
+		A: "a",
+		B: []string{"b1", "b2", "b3"},
+		C: []string{"c1", "c2"},
+	}
+	indexer := &CompoundMultiIndex{
+		AllowMissing: true,
+		Indexes: []Indexer{
+			&StringFieldIndex{Field: "A"},
+			&StringSliceFieldIndex{Field: "B"},
+			&StringSliceFieldIndex{Field: "C"},
+		},
+	}
+
+	ok, vals, err := indexer.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+
+	want := []string{
+		"a\x00",
+		"a\x00b1\x00",
+		"a\x00b1\x00c1\x00",
+		"a\x00b1\x00c2\x00",
+		"a\x00b2\x00",
+		"a\x00b2\x00c1\x00",
+		"a\x00b2\x00c2\x00",
+		"a\x00b3\x00",
+		"a\x00b3\x00c1\x00",
+		"a\x00b3\x00c2\x00",
+	}
+	got := make([]string, len(vals))
+	for i, v := range vals {
+		got[i] = string(v)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("\ngot:  %#v\nwant: %#v\n", got, want)
+	}
+	if !assertAllUnique(t, vals) {
+		t.Fatalf("partial keys were not unique")
+	}
+}
+
