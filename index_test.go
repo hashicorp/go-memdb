@@ -43,6 +43,47 @@ type TestObject struct {
 	Bool     bool
 }
 
+type A struct {
+	IDA  string
+	B    B
+	BPtr *B
+}
+type B struct {
+	IDB  string
+	C    C
+	CPtr *C
+}
+type C struct {
+	IDC string
+}
+
+type Nested struct {
+	A        A
+	ASlice   []A
+	ID       string
+	Foo      string
+	Fu       *string
+	Boo      *string
+	Bar      int
+	Baz      string
+	Bam      *bool
+	Empty    string
+	Qux      []string
+	QuxEmpty []string
+	Zod      map[string]string
+	ZodEmpty map[string]string
+	Int      int
+	Int8     int8
+	Int16    int16
+	Int32    int32
+	Int64    int64
+	Uint     uint
+	Uint8    uint8
+	Uint16   uint16
+	Uint32   uint32
+	Uint64   uint64
+}
+
 func String(s string) *string {
 	return &s
 }
@@ -74,6 +115,101 @@ func testObj() *TestObject {
 		Uint32: uint32(1<<32 - 1),
 		Uint64: uint64(1<<64 - 1),
 		Bool:   false,
+	}
+	return obj
+}
+
+func testNested() *Nested {
+	b := true
+	obj := &Nested{
+		ID:  "nested",
+		Foo: "Testing",
+		Fu:  String("Fu"),
+		Boo: nil,
+		Bar: 42,
+		Baz: "yep",
+		Bam: &b,
+		Qux: []string{"Test", "Test2"},
+		Zod: map[string]string{
+			"Role":          "Server",
+			"instance_type": "m3.medium",
+			"":              "asdf",
+		},
+		Int:    int(1),
+		Int8:   int8(-1 << 7),
+		Int16:  int16(-1 << 15),
+		Int32:  int32(-1 << 31),
+		Int64:  int64(-1 << 63),
+		Uint:   uint(1),
+		Uint8:  uint8(1<<8 - 1),
+		Uint16: uint16(1<<16 - 1),
+		Uint32: uint32(1<<32 - 1),
+		Uint64: uint64(1<<64 - 1),
+		A: A{
+			IDA: "A",
+			B: B{
+				IDB: "B",
+				C: C{
+					IDC: "C",
+				},
+				CPtr: &C{
+					IDC: "C",
+				},
+			},
+			BPtr: &B{
+				IDB: "B",
+				C: C{
+					IDC: "C",
+				},
+				CPtr: &C{
+					IDC: "C",
+				},
+			},
+		},
+		ASlice: []A{
+			A{
+				IDA: "A1",
+				B: B{
+					IDB: "B",
+					C: C{
+						IDC: "C",
+					},
+					CPtr: &C{
+						IDC: "C",
+					},
+				},
+				BPtr: &B{
+					IDB: "B",
+					C: C{
+						IDC: "C",
+					},
+					CPtr: &C{
+						IDC: "C",
+					},
+				},
+			},
+			A{
+				IDA: "A2",
+				B: B{
+					IDB: "B",
+					C: C{
+						IDC: "C",
+					},
+					CPtr: &C{
+						IDC: "C",
+					},
+				},
+				BPtr: &B{
+					IDB: "B",
+					C: C{
+						IDC: "C",
+					},
+					CPtr: &C{
+						IDC: "C",
+					},
+				},
+			},
+		},
 	}
 	return obj
 }
@@ -383,6 +519,199 @@ func TestStringMapFieldIndex_FromObject(t *testing.T) {
 	}
 	if ok {
 		t.Fatalf("should not ok")
+	}
+}
+
+func TestNestedStringFieldIndex_FromObject(t *testing.T) {
+	obj := testNested()
+	indexer := NestedStringFieldIndex{"ID", false}
+
+	ok, val, err := indexer.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "nested\x00" {
+		t.Fatalf("bad: %s", val)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+
+	lower := NestedStringFieldIndex{"ID", true}
+	ok, val, err = lower.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "nested\x00" {
+		t.Fatalf("bad: %s", val)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+
+	inner := NestedStringFieldIndex{"A.B.IDB", false}
+	ok, val, err = inner.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "B\x00" {
+		t.Fatalf("bad: %s", val)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+
+	innerPtr := NestedStringFieldIndex{"A.BPtr.IDB", false}
+	ok, val, err = innerPtr.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "B\x00" {
+		t.Fatalf("bad: %s", val)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+
+	lowerInnerInner := NestedStringFieldIndex{"A.B.C.IDC", true}
+	ok, val, err = lowerInnerInner.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "c\x00" {
+		t.Fatalf("bad: %s", val)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+
+	innerInnerPtr := NestedStringFieldIndex{"A.B.CPtr.IDC", false}
+	ok, val, err = innerInnerPtr.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "C\x00" {
+		t.Fatalf("bad: %s", val)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+
+	lowerInnerInnerPtr := NestedStringFieldIndex{"A.B.CPtr.IDC", true}
+	ok, val, err = lowerInnerInnerPtr.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "c\x00" {
+		t.Fatalf("bad: %s", val)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+
+	innerSlice := NestedStringFieldIndex{"ASlice.IDA", true}
+	ok, val, err = innerSlice.FromObject(obj)
+	if err == nil {
+		t.Fatalf("should get error")
+	}
+
+	badField := NestedStringFieldIndex{"NA", true}
+	ok, val, err = badField.FromObject(obj)
+	if err == nil {
+		t.Fatalf("should get error")
+	}
+
+	emptyField := NestedStringFieldIndex{"Empty", true}
+	ok, val, err = emptyField.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if ok {
+		t.Fatalf("should not ok")
+	}
+
+	pointerField := NestedStringFieldIndex{"Fu", false}
+	ok, val, err = pointerField.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "Fu\x00" {
+		t.Fatalf("bad: %s", val)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+
+	pointerField = NestedStringFieldIndex{"Boo", false}
+	ok, val, err = pointerField.FromObject(obj)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "" {
+		t.Fatalf("bad: %s", val)
+	}
+	if !ok {
+		t.Fatalf("should be ok")
+	}
+}
+
+func TestNestedStringFieldIndex_FromArgs(t *testing.T) {
+	indexer := NestedStringFieldIndex{"Foo", false}
+	_, err := indexer.FromArgs()
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	_, err = indexer.FromArgs(42)
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	val, err := indexer.FromArgs("foo")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "foo\x00" {
+		t.Fatalf("foo")
+	}
+
+	lower := NestedStringFieldIndex{"Foo", true}
+	val, err = lower.FromArgs("Foo")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "foo\x00" {
+		t.Fatalf("foo")
+	}
+}
+
+func TestNestedStringFieldIndex_PrefixFromArgs(t *testing.T) {
+	indexer := NestedStringFieldIndex{"Foo", false}
+	_, err := indexer.FromArgs()
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	_, err = indexer.PrefixFromArgs(42)
+	if err == nil {
+		t.Fatalf("should get err")
+	}
+
+	val, err := indexer.PrefixFromArgs("foo")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "foo" {
+		t.Fatalf("foo")
+	}
+
+	lower := NestedStringFieldIndex{"Foo", true}
+	val, err = lower.PrefixFromArgs("Foo")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if string(val) != "foo" {
+		t.Fatalf("foo")
 	}
 }
 
