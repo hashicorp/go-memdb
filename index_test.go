@@ -1484,3 +1484,48 @@ func BenchmarkCompoundMultiIndex_FromObject(b *testing.B) {
 		}
 	}
 }
+
+// TestIndexCombinationCount verifies that indexCombinationCount correctly
+// computes the product of index value slice lengths.
+func TestIndexCombinationCount(t *testing.T) {
+	cases := []struct {
+		name     string
+		builder  [][][]byte
+		expected int
+	}{
+		{
+			name:     "empty builder",
+			builder:  [][][]byte{},
+			expected: 0,
+		},
+		{
+			name:     "single entry with 1 value",
+			builder:  [][][]byte{{{1}}},
+			expected: 1,
+		},
+		{
+			name:     "single entry with 3 values",
+			builder:  [][][]byte{{{1}, {2}, {3}}},
+			expected: 3,
+		},
+		{
+			name:     "two entries: 2 * 3 = 6",
+			builder:  [][][]byte{{{1}, {2}}, {{3}, {4}, {5}}},
+			expected: 6,
+		},
+		{
+			name:     "three entries: 2 * 3 * 4 = 24",
+			builder:  [][][]byte{{{1}, {2}}, {{3}, {4}, {5}}, {{6}, {7}, {8}, {9}}},
+			expected: 24,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := indexCombinationCount(tc.builder)
+			if got != tc.expected {
+				t.Errorf("got %d, want %d", got, tc.expected)
+			}
+		})
+	}
+}
