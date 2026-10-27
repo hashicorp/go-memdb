@@ -65,6 +65,75 @@ func TestTxn_Insert_First(t *testing.T) {
 	}
 }
 
+func TestTxn_Insert_FailedLeavesIndexesUnchanged(t *testing.T) {
+	schema := &DBSchema{
+		Tables: map[string]*TableSchema{
+			"main": &TableSchema{
+				Name: "main",
+				Indexes: map[string]*IndexSchema{
+					"id": &IndexSchema{
+						Name:    "id",
+						Unique:  true,
+						Indexer: &StringFieldIndex{Field: "ID"},
+					},
+					"name": &IndexSchema{
+						Name:    "name",
+						Unique:  true,
+						Indexer: &StringFieldIndex{Field: "Foo"},
+					},
+				},
+			},
+		},
+	}
+	db, err := NewMemDB(schema)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	original := &TestObject{
+		ID:  "obj-1",
+		Foo: "alpha",
+	}
+	txn := db.Txn(true)
+	if err := txn.Insert("main", original); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	txn.Commit()
+
+	txn = db.Txn(true)
+	err = txn.Insert("main", &TestObject{ID: "obj-1"})
+	if err == nil || err.Error() != "missing value for index 'name'" {
+		t.Fatalf("err: %v", err)
+	}
+
+	raw, err := txn.First("main", "name", "alpha")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if raw != original {
+		t.Fatalf("bad: %#v", raw)
+	}
+	raw, err = txn.First("main", "id", "obj-1")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if raw != original {
+		t.Fatalf("bad: %#v", raw)
+	}
+
+	err = txn.Insert("main", &TestObject{ID: "obj-2"})
+	if err == nil || err.Error() != "missing value for index 'name'" {
+		t.Fatalf("err: %v", err)
+	}
+	raw, err = txn.First("main", "id", "obj-2")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if raw != nil {
+		t.Fatalf("bad: %#v", raw)
+	}
+}
+
 func TestTxn_InsertUpdate_First(t *testing.T) {
 	db := testDB(t)
 	txn := db.Txn(true)
