@@ -117,3 +117,21 @@ func (db *MemDB) initialize() error {
 func indexPath(table, index string) []byte {
 	return []byte(table + "." + index)
 }
+
+// Count returns the number of elements in the given table's index.
+func (db *MemDB) Count(table, index string) int {
+	root := db.getRoot()
+	path := indexPath(table, index)
+	raw, _ := root.Get(path)
+
+	if raw == nil {
+		return 0
+	}
+
+	idxTree, ok := raw.(*iradix.Tree)
+	if !ok {
+		return 0
+	}
+
+	return idxTree.Len()
+}
