@@ -45,7 +45,7 @@ type Txn struct {
 
 // TrackChanges enables change tracking for the transaction. If called at any
 // point before commit, subsequent mutations will be recorded and can be
-// retrieved using ChangeSet. Once this has been called on a transaction it
+// retrieved using Changes. Once this has been called on a transaction it
 // can't be unset. As with other Txn methods it's not safe to call this from a
 // different goroutine than the one making mutations or committing the
 // transaction.
@@ -904,7 +904,7 @@ func (txn *Txn) Changes() Changes {
 		if mi.lastIdx == i {
 			// This was the latest value for this key copy it with the before value in
 			// case it's different. Note that m is not a pointer so we are not
-			// modifying the txn.changeSet here - it's already a copy.
+			// modifying the txn.changes here - it's already a copy.
 			m.Before = mi.firstBefore
 
 			// Edge case - if the object was inserted and then eventually deleted in
